@@ -3,75 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OrleGEO // Map</title>
+    <title>OrleGEO Map</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-    
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         :root {
-            --bg-dark: #121214;
-            --panel-bg: rgba(24, 24, 27, 0.95);
-            --accent-cyan: #00f3ff;
-            --accent-pink: #ff0055;
-            --border-line: rgba(255, 255, 255, 0.1);
+            --bg-main: #09090b;
+            --panel-bg: #18181b;
+            --accent: #22d3ee;
+            --text-main: #f4f4f5;
+            --text-muted: #a1a1aa;
+            --border: #27272a;
         }
         
-        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg-dark); color: #f4f4f5; overflow: hidden; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body, html { width: 100%; height: 100%; background: var(--bg-main); color: var(--text-main); overflow: hidden; }
         
-        #map { position: absolute; top: 0; bottom: 0; width: 100%; height: 100%; z-index: 1; }
+        #map { width: 100%; height: 100%; position: absolute; top: 0; bottom: 0; z-index: 1; }
 
-        /* Top Bar Navigation */
-        .top-bar {
-            position: absolute; top: 10px; left: 10px; right: 10px; height: 50px;
-            background: var(--panel-bg); border: 1px solid var(--border-line);
+        /* Clean Top Banner */
+        .header-bar {
+            position: absolute; top: 12px; left: 12px; right: 12px; height: 50px;
+            background: var(--panel-bg); border: 1px solid var(--border);
             border-radius: 8px; display: flex; align-items: center; justify-content: space-between;
-            padding: 0 15px; z-index: 1000; backdrop-filter: blur(10px);
+            padding: 0 16px; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
         }
-        .main-title { font-size: 16px; font-weight: 700; color: #fff; letter-spacing: 0.5px; }
-        .status-dot { font-size: 11px; color: var(--accent-cyan); font-weight: 500; }
+        .header-title { font-size: 16px; font-weight: 600; color: #fff; }
+        .status-text { font-size: 12px; color: var(--accent); font-weight: 500; }
 
-        /* Floating Controls & Content Panels */
-        .floating-hud {
-            position: absolute; bottom: 20px; left: 10px; right: 10px;
-            background: var(--panel-bg); border: 1px solid var(--border-line);
-            border-radius: 12px; padding: 15px; z-index: 1000;
-            max-height: 40vh; overflow-y: auto; backdrop-filter: blur(10px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        /* Floating Info & Control Drawer */
+        .control-drawer {
+            position: absolute; bottom: 16px; left: 12px; right: 12px;
+            background: var(--panel-bg); border: 1px solid var(--border);
+            border-radius: 12px; padding: 16px; z-index: 1000;
+            max-height: 45vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
         }
 
-        /* Forms, Inputs and Buttons */
-        .search-row { display: flex; gap: 8px; margin-bottom: 10px; }
+        .search-row { display: flex; gap: 8px; margin-bottom: 12px; }
         input, select {
-            flex: 1; background: #09090b; border: 1px solid var(--border-line);
-            color: #fff; padding: 12px; border-radius: 6px; font-size: 14px; -webkit-appearance: none;
+            flex: 1; background: var(--bg-main); border: 1px solid var(--border);
+            color: #fff; padding: 12px; border-radius: 8px; font-size: 14px; outline: none;
         }
-        input:focus, select:focus { border-color: var(--accent-cyan); outline: none; }
+        input:focus { border-color: var(--accent); }
         
         button {
-            background: var(--accent-cyan); color: #000; border: none; font-weight: 600;
-            padding: 12px 18px; border-radius: 6px; font-size: 14px; cursor: pointer; transition: background 0.2s;
+            background: var(--accent); color: #09090b; border: none; font-weight: 600;
+            padding: 12px 20px; border-radius: 8px; font-size: 14px; cursor: pointer;
         }
-        button:active { opacity: 0.8; }
-        .btn-cancel { background: #27272a; color: #fff; margin-right: 8px; }
+        button:active { opacity: 0.9; }
+        .btn-secondary { background: #27272a; color: #fff; }
 
-        /* Details Card Components */
-        .info-card { display: none; border-top: 1px solid var(--border-line); margin-top: 12px; padding-top: 12px; }
-        .info-title { font-size: 18px; font-weight: 700; color: var(--accent-cyan); margin: 0 0 8px 0; }
-        .info-meta { font-size: 13px; color: #a1a1aa; margin: 4px 0; }
-        .info-img { width: 100%; max-height: 180px; object-fit: cover; border-radius: 6px; margin-top: 10px; display: none; border: 1px solid var(--border-line); }
+        /* Output Card styling */
+        .data-card { display: none; border-top: 1px solid var(--border); margin-top: 12px; padding-top: 12px; }
+        .data-title { font-size: 18px; font-weight: 600; color: var(--accent); margin-bottom: 6px; }
+        .data-item { font-size: 13px; color: var(--text-muted); margin: 4px 0; }
+        .data-img { width: 100%; max-height: 160px; object-fit: cover; border-radius: 6px; margin-top: 10px; display: none; border: 1px solid var(--border); }
 
-        /* Creator Panel Overlay */
-        #creator-panel { top: 70px; bottom: auto; display: none; max-height: 75vh; }
-        .field-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
-        .field-group label { font-size: 12px; color: #a1a1aa; font-weight: 500; }
+        /* Editing Dialog Interface styling */
+        #editor-drawer { top: 74px; bottom: auto; display: none; max-height: 70vh; }
+        .input-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+        .input-group label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
 
-        /* Clean up Leaflet native controls layout for Mobile screens */
+        /* Map UI Reset fix for touch */
         .leaflet-touch .leaflet-draw-toolbar { margin-top: 65px !important; }
     </style>
 </head>
@@ -79,318 +76,257 @@
 
 <div id="map"></div>
 
-<div class="top-bar">
-    <div class="main-title">OrleGEO Map</div>
-    <div class="status-dot" id="system-status">Loading systems...</div>
+<div class="header-bar">
+    <div class="header-title">OrleGEO Map</div>
+    <div class="status-text" id="map-status">Syncing Dataset...</div>
 </div>
 
-<div id="control-panel" class="floating-hud">
+<div id="control-drawer" class="control-drawer">
     <div class="search-row">
-        <input type="text" id="search-query" placeholder="Search a place or paste Lat,Lng...">
-        <button onclick="searchMapMatrix()">Search</button>
+        <input type="text" id="search-input" placeholder="Search a county or paste Lat,Lng...">
+        <button onclick="runMapSearch()">Search</button>
     </div>
 
-    <div id="inspector" class="info-card">
-        <h3 id="inspect-name" class="info-title">Location Details</h3>
-        <p class="info-meta"><strong>Layer Type:</strong> <span id="inspect-layer">-</span></p>
-        <p class="info-meta"><strong>Category:</strong> <span id="inspect-category">-</span></p>
-        <p class="info-meta"><strong>ID Number:</strong> <span id="inspect-ref">-</span></p>
-        <div id="inspect-dimensions" style="font-size: 13px; color: #e4e4e7; background: #18181b; padding: 10px; margin-top: 8px; border-radius: 6px;"></div>
-        <img id="inspect-image" class="info-img" src="" alt="Linked Map Preview Image">
+    <div id="inspector-card" class="data-card">
+        <h3 id="view-name" class="data-title">Location Information</h3>
+        <p class="data-item"><strong>Category Type:</strong> <span id="view-category">-</span></p>
+        <p class="data-item"><strong>ID Reference:</strong> <span id="view-ref">-</span></p>
+        <div id="view-meta" style="font-size: 13px; background: #09090b; padding: 10px; margin-top: 8px; border-radius: 6px; display: none;"></div>
+        <img id="view-image" class="data-img" src="" alt="Attached view asset">
     </div>
 </div>
 
-<div id="creator-panel" class="floating-hud">
-    <h3 style="margin:0 0 15px 0; font-size:16px; color:#fff;">Add New Map Object</h3>
+<div id="editor-drawer" class="control-drawer">
+    <h3 style="margin-bottom: 12px; font-size: 16px;">Create New Object</h3>
     
-    <div class="field-group">
-        <label>Object Name</label>
-        <input type="text" id="node-name" placeholder="E.g., North Lake">
+    <div class="input-group">
+        <label>Name</label>
+        <input type="text" id="add-name" placeholder="E.g., Central Valley">
     </div>
-    <div class="field-group">
+    <div class="input-group">
         <label>Type Category</label>
-        <select id="node-category" onchange="adjustFormFields()">
-            <option value="city">City / Town District</option>
-            <option value="lake">Lake / Water Body</option>
+        <select id="add-category" onchange="toggleFormFields()">
+            <option value="city">City / District Space</option>
+            <option value="lake">Lake / Ocean Color</option>
             <option value="mountain">Mountain / Elevation Ridge</option>
-            <option value="road">Road / Main Highway</option>
-            <option value="police_station">Police Station</option>
+            <option value="road">Road / Main Route</option>
         </select>
     </div>
-    <div class="field-group">
-        <label>Map Layer Mapping</label>
-        <select id="node-layer">
-            <option value="default_layer">Default Baseline Layer</option>
-            <option value="custom_layer">New Custom Layer Layer</option>
-        </select>
+    <div class="input-group">
+        <label>Image URL Link</label>
+        <input type="text" id="add-img" placeholder="https://example.com/preview.jpg">
     </div>
-    <div class="field-group">
-        <label>Image Link Only (No uploads)</label>
-        <input type="text" id="node-img-url" placeholder="https://site.com/image.jpg">
-    </div>
-    <div class="field-group">
-        <label>Reference Verification Code</label>
-        <input type="text" id="node-ref" placeholder="REF-XXXX">
+    <div class="input-group">
+        <label>Reference Code / ID</label>
+        <input type="text" id="add-ref" placeholder="ID-424">
     </div>
 
-    <div id="dynamic-metrics"></div>
+    <div id="extra-fields"></div>
 
-    <div style="display:flex; justify-content: flex-end; margin-top:15px;">
-        <button class="btn-cancel" onclick="closeDrawingWorkflow()">Cancel</button>
-        <button onclick="saveObjectToSupabase()">Save to Supabase</button>
+    <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
+        <button class="btn-secondary" onclick="abortCreation()">Cancel</button>
+        <button onclick="saveLocalFeature()">Display on Map</button>
     </div>
 </div>
 
 <script>
-    // Database credentials setup connection parameters
-    const SUPABASE_URL = "https://sgfhjqfkbumsphevxlrc.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_dCaPTVDjHAXrxH307dTk0g_p_ngBhud";
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let geojsonLayer = null;
+    let localEditsLayerGroup = null;
+    let temporaryDrawnLayer = null;
 
-    let baseGithubLayer = null; 
-    let dynamicSupabaseLayer = null;
-    let newlyDrawnLayer = null;
-
-    // Initialize map using completely free CartoDB Dark Matter tiles (No API key locks)
+    // Load direct map without API keys using CartoDB Smooth Dark Tiles
     const map = L.map('map', { zoomControl: false }).setView([0, 0], 2);
-
+    
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 20,
-        attribution: '&copy; OpenStreetMap &copy; CARTO'
+        maxZoom: 20
     }).addTo(map);
 
-    // Setup map editor controls (QGIS Vector simulation styles)
-    const drawnItemsGroup = new L.FeatureGroup();
-    map.addLayer(drawnItemsGroup);
+    localEditsLayerGroup = new L.FeatureGroup().addTo(map);
+
+    // Mount Leaflet Drawing Elements
     const drawControl = new L.Control.Draw({
-        edit: { featureGroup: drawnItemsGroup, remove: true },
+        edit: { featureGroup: localEditsLayerGroup, remove: true },
         draw: { polygon: true, polyline: true, marker: true, rectangle: true, circle: false }
     });
     map.addControl(drawControl);
 
-    // Trigger base loading events
-    window.addEventListener('DOMContentLoaded', async () => {
-        document.getElementById('system-status').innerText = "Loading data...";
-        await loadRepositoryGeoJSON();
-        await pullLiveSupabaseObjects();
+    // Core Initialization
+    window.addEventListener('DOMContentLoaded', () => {
+        fetchOrlandData();
     });
 
-    // 1. IMPORT DATA DIRECTLY FROM YOUR CORRECT REPOSITORY LINK
-    async function loadRepositoryGeoJSON() {
-        // Direct absolute raw link constructed from the provided path parameters
-        const url = "https://raw.githubusercontent.com/ChrisAguahrz/ORLEGEO/main/%28R%29%20ORLAND%20424%20STATES.geojson";
+    // Read direct repository data securely
+    async function fetchOrlandData() {
+        const fileUrl = "https://raw.githubusercontent.com/ChrisAguahrz/ORLEGEO/main/(R) ORLAND 424 STATES.geojson";
         try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error("File not found on repository branch.");
-            const geojson = await response.json();
+            const response = await fetch(fileUrl);
+            if (!response.ok) throw new Error("File fetch failed.");
+            const data = await response.json();
 
-            baseGithubLayer = L.geoJSON(geojson, {
+            geojsonLayer = L.geoJSON(data, {
                 style: {
-                    color: "#00f3ff",
+                    color: "#22d3ee",
                     weight: 1.5,
-                    fillColor: "#ff0055",
+                    fillColor: "#22d3ee",
                     fillOpacity: 0.1
                 },
                 onEachFeature: (feature, layer) => {
                     layer.on('click', (e) => {
                         L.DomEvent.stopPropagation(e);
-                        showActiveHighlight(layer, feature.properties);
+                        selectFeatureItem(layer, feature.properties);
                     });
                 }
             }).addTo(map);
 
-            // Center view safely to fit the file boundaries perfectly
-            map.fitBounds(baseGithubLayer.getBounds());
-            document.getElementById('system-status').innerText = "GitHub Loaded";
-        } catch (err) {
-            console.error(err);
-            document.getElementById('system-status').innerText = "GitHub Load Error";
+            map.fitBounds(geojsonLayer.getBounds());
+            document.getElementById('map-status').innerText = "Map Ready";
+        } catch (error) {
+            console.error(error);
+            document.getElementById('map-status').innerText = "Data missing or hidden";
         }
     }
 
-    // 2. READ LIVE BACKEND LAYERS OUT OF SUPABASE ON APP STARTS / RELOADS
-    async function pullLiveSupabaseObjects() {
-        try {
-            if (dynamicSupabaseLayer) map.removeLayer(dynamicSupabaseLayer);
-
-            const { data, error } = await supabase.rpc('get_orlegeo_geojson');
-            if (error) throw error;
-
-            if (data && data.features) {
-                dynamicSupabaseLayer = L.geoJSON(data, {
-                    style: (feature) => {
-                        let trackingColor = "#00f3ff"; // Cyan base
-                        if (feature.properties.category === 'lake') trackingColor = "#0055ff"; // Ocean styling color override
-                        if (feature.properties.category === 'mountain') trackingColor = "#eab308"; // Gold Amber
-                        if (feature.properties.category === 'city') trackingColor = "#ff0055"; // Hot pink
-
-                        return {
-                            color: "#ffffff",
-                            weight: 2,
-                            fillColor: trackingColor,
-                            fillOpacity: 0.6
-                        };
-                    },
-                    onEachFeature: (feature, layer) => {
-                        layer.on('click', (e) => {
-                            L.DomEvent.stopPropagation(e);
-                            displayInspectorPanel(
-                                feature.properties.name,
-                                feature.properties.layer_type,
-                                feature.properties.category,
-                                feature.properties.reference_number,
-                                feature.properties.image_url,
-                                feature.properties.dimensions
-                            );
-                        });
-                    }
-                }).addTo(map);
-            }
-        } catch (err) {
-            console.error("Database load error:", err);
-        }
-    }
-
-    // Open editing view menu once vectors finish drawing on screen
+    // Capture Vector Complete Creation Triggers
     map.on(L.Draw.Event.CREATED, function (e) {
-        newlyDrawnLayer = e.layer;
-        drawnItemsGroup.addLayer(newlyDrawnLayer);
-        document.getElementById('creator-panel').style.display = 'block';
-        adjustFormFields();
+        temporaryDrawnLayer = e.layer;
+        localEditsLayerGroup.addLayer(temporaryDrawnLayer);
+        document.getElementById('editor-drawer').style.display = 'block';
+        toggleFormFields();
     });
 
-    function adjustFormFields() {
-        const category = document.getElementById('node-category').value;
-        const metricsBox = document.getElementById('dynamic-metrics');
-        let htmlBlock = '';
+    function toggleFormFields() {
+        const category = document.getElementById('add-category').value;
+        const targetDiv = document.getElementById('extra-fields');
+        let html = '';
 
         if (category === 'lake') {
-            htmlBlock = `
-                <div class="field-group"><label>Depth Value (Meters)</label><input type="number" id="dim-depth" value="50"></div>
-                <div class="field-group"><label>Size Area (Sq KM)</label><input type="number" id="dim-size" value="150"></div>`;
+            html = `
+                <div class="input-group"><label>Depth (Meters)</label><input type="number" id="spec-depth" value="30"></div>
+                <div class="input-group"><label>Size Area (Sq KM)</label><input type="number" id="spec-size" value="100"></div>`;
         } else if (category === 'mountain') {
-            htmlBlock = `<div class="field-group"><label>Peak Elevation Height (m)</label><input type="number" id="dim-height" value="2800"></div>`;
+            html = `<div class="input-group"><label>Height (Meters)</label><input type="number" id="spec-height" value="2500"></div>`;
         } else if (category === 'road') {
-            htmlBlock = `<div class="field-group"><label>Lanes Width</label><input type="number" id="dim-width" value="4"></div>`;
+            html = `<div class="input-group"><label>Width Lanes</label><input type="number" id="spec-width" value="4"></div>`;
         }
-        metricsBox.innerHTML = htmlBlock;
+        targetDiv.innerHTML = html;
     }
 
-    // SAVE OBJECT DATA AND VECTOR DATA DIRECTLY INTO SUPABASE (Survives browser reloads)
-    async function saveObjectToSupabase() {
-        if (!newlyDrawnLayer) return;
+    // Displays drawn node elements instantly to viewport layer array
+    function saveLocalFeature() {
+        if (!temporaryDrawnLayer) return;
 
-        const name = document.getElementById('node-name').value || "New Map Layer Node";
-        const category = document.getElementById('node-category').value;
-        const layer_type = document.getElementById('node-layer').value;
-        const image_url = document.getElementById('node-img-url').value;
-        const reference_number = document.getElementById('node-ref').value;
+        const name = document.getElementById('add-name').value || "Custom Location";
+        const category = document.getElementById('add-category').value;
+        const image = document.getElementById('add-img').value;
+        const ref = document.getElementById('add-ref').value || "N/A";
 
-        let dimensions = {};
-        if (document.getElementById('dim-depth')) dimensions.depth = document.getElementById('dim-depth').value;
-        if (document.getElementById('dim-size')) dimensions.size = document.getElementById('dim-size').value;
-        if (document.getElementById('dim-height')) dimensions.height = document.getElementById('dim-height').value;
-        if (document.getElementById('dim-width')) dimensions.width = document.getElementById('dim-width').value;
+        let specs = {};
+        if (document.getElementById('spec-depth')) specs.depth = document.getElementById('spec-depth').value + " m";
+        if (document.getElementById('spec-size')) specs.size = document.getElementById('spec-size').value + " sq km";
+        if (document.getElementById('spec-height')) specs.height = document.getElementById('spec-height').value + " m";
+        if (document.getElementById('spec-width')) specs.width = document.getElementById('spec-width').value + " Lanes";
 
-        const geojsonFormat = newlyDrawnLayer.toGeoJSON();
-
-        const payload = {
-            name, category, layer_type, image_url, reference_number, dimensions,
-            geom: geojsonFormat.geometry
-        };
-
-        const { data, error } = await supabase.from('orlegeo_map_objects').insert([payload]);
-
-        if (error) {
-            alert("Save failed: " + error.message);
-        } else {
-            document.getElementById('creator-panel').style.display = 'none';
-            drawnItemsGroup.clearLayers();
-            await pullLiveSupabaseObjects(); // Reload the layers into view automatically
+        // Style elements interactively based on choices right away
+        if (category === 'lake') {
+            temporaryDrawnLayer.setStyle({ color: '#1d4ed8', fillColor: '#1e40af', fillOpacity: 0.6 }); // Transforms to Ocean color
+        } else if (category === 'mountain') {
+            temporaryDrawnLayer.setStyle({ color: '#f59e0b', fillColor: '#b45309', fillOpacity: 0.5 });
+        } else if (category === 'road') {
+            temporaryDrawnLayer.setStyle({ color: '#e4e4e7', weight: 4 });
         }
+
+        // Attach custom properties data directly to layer dictionary element
+        temporaryDrawnLayer.customProperties = { name, category, image, reference: ref, specs };
+        
+        temporaryDrawnLayer.on('click', (e) => {
+            L.DomEvent.stopPropagation(e);
+            displaySidebarHUD(name, category, ref, image, specs);
+        });
+
+        document.getElementById('editor-drawer').style.display = 'none';
     }
 
-    // Search Box Parsing Handling Engine
-    async function searchMapMatrix() {
-        const query = document.getElementById('search-query').value.trim();
-        if (!query) return;
+    // Unified Search Parsing engine for Names and Batch Coordinate Arrays
+    function runMapSearch() {
+        const input = document.getElementById('search-input').value.trim();
+        if (!input) return;
 
-        // Coordinates check (E.g. 28.53, -81.37)
-        const coordinatePattern = /^[-+]?([1-9]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/;
+        // Catch dynamic string lat, lng checks
+        const coordRegex = /^[-+]?([1-9]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/;
 
-        if (coordinatePattern.test(query)) {
-            const [lat, lng] = query.split(',').map(Number);
+        if (coordRegex.test(input)) {
+            const [lat, lng] = input.split(',').map(Number);
             map.setView([lat, lng], 14);
-            L.circle([lat, lng], { color: '#ff0055', radius: 250 }).addTo(map);
-            displayInspectorPanel("Coordinate Point", "Manual Input Layer", "Coordinate Pin", "N/A", "");
+            L.circle([lat, lng], { color: '#ff0055', radius: 200 }).addTo(map);
+            displaySidebarHUD("Coordinate Focus Target", "Manual Pin Location", "N/A", "", {});
             return;
         }
 
-        // Search through data fetched from GitHub
-        let itemLocated = false;
-        if (baseGithubLayer) {
-            baseGithubLayer.eachLayer((layer) => {
-                if (layer.feature.properties.name && layer.feature.properties.name.toLowerCase().includes(query.toLowerCase())) {
+        let itemFound = false;
+
+        // Check local drawn workspace markers
+        localEditsLayerGroup.eachLayer((layer) => {
+            if (layer.customProperties && layer.customProperties.name.toLowerCase().includes(input.toLowerCase())) {
+                map.fitBounds(layer.getBounds ? layer.getBounds() : L.latLngBounds(layer.getLatLng(), layer.getLatLng()));
+                const p = layer.customProperties;
+                displaySidebarHUD(p.name, p.category, p.reference, p.image, p.specs);
+                itemFound = true;
+            }
+        });
+
+        // Check base loaded file components
+        if (!itemFound && geojsonLayer) {
+            geojsonLayer.eachLayer((layer) => {
+                if (layer.feature.properties.name && layer.feature.properties.name.toLowerCase().includes(input.toLowerCase())) {
                     map.fitBounds(layer.getBounds());
-                    showActiveHighlight(layer, layer.feature.properties);
-                    itemLocated = true;
+                    selectFeatureItem(layer, layer.feature.properties);
+                    itemFound = true;
                 }
             });
         }
 
-        if (!itemLocated) {
-            // Check dynamic entries saved inside Supabase if missing from GitHub
-            const { data, error } = await supabase.from('orlegeo_map_objects').select('*').ilike('name', `%${query}%`).maybeSingle();
-            if (data) {
-                const geometryLayer = L.geoJSON(data.geom);
-                map.fitBounds(geometryLayer.getBounds());
-                displayInspectorPanel(data.name, data.layer_type, data.category, data.reference_number, data.image_url, data.dimensions);
-            } else {
-                alert("Location not found in database.");
-            }
-        }
+        if (!itemFound) alert("Location matches no known records.");
     }
 
-    function showActiveHighlight(layer, props) {
-        layer.setStyle({ color: '#ff0055', weight: 4, fillOpacity: 0.3 });
-        setTimeout(() => { baseGithubLayer.resetStyle(layer); }, 5000);
+    function selectFeatureItem(layer, props) {
+        layer.setStyle({ color: '#ff0055', weight: 3, fillOpacity: 0.3 });
+        setTimeout(() => { geojsonLayer.resetStyle(layer); }, 4000);
 
-        displayInspectorPanel(
-            props.name || "Unnamed Area",
-            "GitHub File Source",
-            props.category || "County / District Space",
-            props.id || "N/A",
-            props.image_link || ""
+        displaySidebarHUD(
+            props.name || "County District",
+            props.category || "Base Region Space",
+            props.id || "Unassigned",
+            props.image_link || "",
+            props.dimensions || {}
         );
     }
 
-    function displayInspectorPanel(name, layer, cat, ref, imgUrl, dimensions = {}) {
-        document.getElementById('inspector').style.display = 'block';
-        document.getElementById('inspect-name').innerText = name;
-        document.getElementById('inspect-layer').innerText = layer;
-        document.getElementById('inspect-category').innerText = cat;
-        document.getElementById('inspect-ref').innerText = ref;
+    function displaySidebarHUD(name, category, ref, img, meta = {}) {
+        document.getElementById('inspector-card').style.display = 'block';
+        document.getElementById('view-name').innerText = name;
+        document.getElementById('view-category').innerText = category;
+        document.getElementById('view-ref').innerText = ref;
 
-        let measurementsBox = document.getElementById('inspect-dimensions');
-        if (Object.keys(dimensions).length > 0) {
-            measurementsBox.style.display = 'block';
-            measurementsBox.innerHTML = `<strong>Measurements Data:</strong><br>` + Object.entries(dimensions).map(([k,v]) => `${k.toUpperCase()}: ${v}`).join('<br>');
+        let metaBox = document.getElementById('view-meta');
+        if (Object.keys(meta).length > 0) {
+            metaBox.style.display = 'block';
+            metaBox.innerHTML = Object.entries(meta).map(([key, val]) => `<div><strong>${key.toUpperCase()}:</strong> ${val}</div>`).join('');
         } else {
-            measurementsBox.style.display = 'none';
+            metaBox.style.display = 'none';
         }
 
-        let imagePlaceholder = document.getElementById('inspect-image');
-        if (imgUrl && imgUrl.startsWith('http')) {
-            imagePlaceholder.src = imgUrl;
-            imagePlaceholder.style.display = 'block';
+        let imgBox = document.getElementById('view-image');
+        if (img && img.startsWith('http')) {
+            imgBox.src = img;
+            imgBox.style.display = 'block';
         } else {
-            imagePlaceholder.style.display = 'none';
+            imgBox.style.display = 'none';
         }
     }
 
-    function closeDrawingWorkflow() {
-        document.getElementById('creator-panel').style.display = 'none';
-        drawnItemsGroup.clearLayers();
+    function abortCreation() {
+        document.getElementById('editor-drawer').style.display = 'none';
+        if (temporaryDrawnLayer) localEditsLayerGroup.removeLayer(temporaryDrawnLayer);
     }
 </script>
 </body>
