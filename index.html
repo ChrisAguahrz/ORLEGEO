@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OrleGEO // Tactical Command Matrix</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OrleGEO // Map</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -14,209 +14,227 @@
 
     <style>
         :root {
-            --neon-cyan: #00f3ff;
-            --neon-magenta: #ff0055;
-            --cyber-dark: rgba(6, 10, 20, 0.9);
-            --neon-glow: 0 0 15px rgba(0, 243, 255, 0.6);
+            --bg-dark: #121214;
+            --panel-bg: rgba(24, 24, 27, 0.95);
+            --accent-cyan: #00f3ff;
+            --accent-pink: #ff0055;
+            --border-line: rgba(255, 255, 255, 0.1);
         }
         
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Courier New', monospace; background: #020205; color: #fff; overflow: hidden; }
-        #map { position: absolute; top: 0; bottom: 0; width: 100%; height: 100%; background: #030308; }
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg-dark); color: #f4f4f5; overflow: hidden; }
+        
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; height: 100%; z-index: 1; }
 
-        /* Sci-Fi HUD Outlines */
-        .hud-glass {
-            position: absolute; background: var(--cyber-dark); border: 2px solid var(--neon-cyan);
-            box-shadow: var(--neon-glow); backdrop-filter: blur(12px); border-radius: 0px; padding: 15px; z-index: 1000;
+        /* Top Bar Navigation */
+        .top-bar {
+            position: absolute; top: 10px; left: 10px; right: 10px; height: 50px;
+            background: var(--panel-bg); border: 1px solid var(--border-line);
+            border-radius: 8px; display: flex; align-items: center; justify-content: space-between;
+            padding: 0 15px; z-index: 1000; backdrop-filter: blur(10px);
+        }
+        .main-title { font-size: 16px; font-weight: 700; color: #fff; letter-spacing: 0.5px; }
+        .status-dot { font-size: 11px; color: var(--accent-cyan); font-weight: 500; }
+
+        /* Floating Controls & Content Panels */
+        .floating-hud {
+            position: absolute; bottom: 20px; left: 10px; right: 10px;
+            background: var(--panel-bg); border: 1px solid var(--border-line);
+            border-radius: 12px; padding: 15px; z-index: 1000;
+            max-height: 40vh; overflow-y: auto; backdrop-filter: blur(10px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
         }
 
-        #top-header { top: 15px; left: 15px; right: 15px; height: 50px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
-        .matrix-title { font-size: 22px; font-weight: bold; letter-spacing: 3px; color: var(--neon-cyan); text-shadow: var(--neon-glow); }
-
-        #control-panel { top: 95px; left: 15px; width: 340px; max-height: 75vh; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        /* Forms, Inputs and Buttons */
+        .search-row { display: flex; gap: 8px; margin-bottom: 10px; }
+        input, select {
+            flex: 1; background: #09090b; border: 1px solid var(--border-line);
+            color: #fff; padding: 12px; border-radius: 6px; font-size: 14px; -webkit-appearance: none;
+        }
+        input:focus, select:focus { border-color: var(--accent-cyan); outline: none; }
         
-        .search-container { display: flex; gap: 5px; }
-        input, select { flex: 1; background: rgba(0,0,0,0.8); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); padding: 10px; font-family: monospace; }
-        input:focus, select:focus { border-color: var(--neon-magenta); outline: none; box-shadow: 0 0 8px var(--neon-magenta); }
-        
-        button { background: transparent; border: 1px solid var(--neon-cyan); color: var(--neon-cyan); font-family: monospace; padding: 10px 15px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
-        button:hover { background: var(--neon-cyan); color: #000; box-shadow: var(--neon-glow); }
-        .btn-danger { border-color: var(--neon-magenta); color: var(--neon-magenta); }
-        .btn-danger:hover { background: var(--neon-magenta); color: #000; box-shadow: 0 0 10px var(--neon-magenta); }
+        button {
+            background: var(--accent-cyan); color: #000; border: none; font-weight: 600;
+            padding: 12px 18px; border-radius: 6px; font-size: 14px; cursor: pointer; transition: background 0.2s;
+        }
+        button:active { opacity: 0.8; }
+        .btn-cancel { background: #27272a; color: #fff; margin-right: 8px; }
 
-        .inspector-card { border-top: 1px solid rgba(0, 243, 255, 0.4); margin-top: 10px; padding-top: 10px; display: none; }
-        .asset-img { width: 100%; border: 1px solid var(--neon-magenta); margin-top: 10px; display: none; }
+        /* Details Card Components */
+        .info-card { display: none; border-top: 1px solid var(--border-line); margin-top: 12px; padding-top: 12px; }
+        .info-title { font-size: 18px; font-weight: 700; color: var(--accent-cyan); margin: 0 0 8px 0; }
+        .info-meta { font-size: 13px; color: #a1a1aa; margin: 4px 0; }
+        .info-img { width: 100%; max-height: 180px; object-fit: cover; border-radius: 6px; margin-top: 10px; display: none; border: 1px solid var(--border-line); }
 
-        /* QGIS Editor Panel */
-        #qgis-panel { top: 95px; right: 15px; width: 320px; display: none; }
-        .field-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
-        .field-group label { font-size: 11px; color: #88a8b8; text-transform: uppercase; letter-spacing: 1px; }
+        /* Creator Panel Overlay */
+        #creator-panel { top: 70px; bottom: auto; display: none; max-height: 75vh; }
+        .field-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+        .field-group label { font-size: 12px; color: #a1a1aa; font-weight: 500; }
 
-        /* Override Leaflet Draw UI to match Cyber Aesthetics */
-        .leaflet-draw-toolbar a { background-color: var(--cyber-dark) !important; border-bottom: 1px solid var(--neon-cyan) !important; color: var(--neon-cyan) !important; }
+        /* Clean up Leaflet native controls layout for Mobile screens */
+        .leaflet-touch .leaflet-draw-toolbar { margin-top: 65px !important; }
     </style>
 </head>
 <body>
 
 <div id="map"></div>
 
-<div id="top-header" class="hud-glass">
-    <div class="matrix-title">OrleGEO // ORLAND CRITICAL MAP ENGINE</div>
-    <div style="font-size: 11px; color: #ff0055; font-weight: bold;" id="system-status">INITIALIZING SYSTEMS...</div>
+<div class="top-bar">
+    <div class="main-title">OrleGEO Map</div>
+    <div class="status-dot" id="system-status">Loading systems...</div>
 </div>
 
-<div id="control-panel" class="hud-glass">
-    <div>
-        <div class="field-group"><label>Query Registry (Name / Batch Lat,Lng)</label></div>
-        <div class="search-container">
-            <input type="text" id="search-query" placeholder="Search county or 'Lat,Lng'...">
-            <button onclick="executeMatrixSearch()">SCAN</button>
-        </div>
+<div id="control-panel" class="floating-hud">
+    <div class="search-row">
+        <input type="text" id="search-query" placeholder="Search a place or paste Lat,Lng...">
+        <button onclick="searchMapMatrix()">Search</button>
     </div>
 
-    <div id="inspector" class="inspector-card">
-        <h3 id="inspect-name" style="margin:0 0 10px 0; color: var(--neon-magenta); text-shadow: 0 0 5px var(--neon-magenta);">Entity Name</h3>
-        <p style="font-size:12px; margin: 5px 0;"><strong>Layer Space:</strong> <span id="inspect-layer" style="color:var(--neon-cyan)">-</span></p>
-        <p style="font-size:12px; margin: 5px 0;"><strong>Category:</strong> <span id="inspect-category">-</span></p>
-        <p style="font-size:12px; margin: 5px 0;"><strong>Tracking ID:</strong> <span id="inspect-ref">-</span></p>
-        <div id="inspect-dimensions" style="font-size:11px; color:#a2cad6; background:rgba(0,0,0,0.6); padding:8px; margin-top:8px; border-left: 2px solid var(--neon-cyan);"></div>
-        <img id="inspect-image" class="asset-img" src="" alt="External Asset Sync">
+    <div id="inspector" class="info-card">
+        <h3 id="inspect-name" class="info-title">Location Details</h3>
+        <p class="info-meta"><strong>Layer Type:</strong> <span id="inspect-layer">-</span></p>
+        <p class="info-meta"><strong>Category:</strong> <span id="inspect-category">-</span></p>
+        <p class="info-meta"><strong>ID Number:</strong> <span id="inspect-ref">-</span></p>
+        <div id="inspect-dimensions" style="font-size: 13px; color: #e4e4e7; background: #18181b; padding: 10px; margin-top: 8px; border-radius: 6px;"></div>
+        <img id="inspect-image" class="info-img" src="" alt="Linked Map Preview Image">
     </div>
 </div>
 
-<div id="qgis-panel" class="hud-glass">
-    <h3 style="margin:0 0 15px 0; color:var(--neon-cyan); font-size:13px; letter-spacing:1px; text-shadow: var(--neon-glow);">NEW VECTOR DETECTION ENTRY</h3>
+<div id="creator-panel" class="floating-hud">
+    <h3 style="margin:0 0 15px 0; font-size:16px; color:#fff;">Add New Map Object</h3>
     
     <div class="field-group">
-        <label>Entity Designation Name</label>
-        <input type="text" id="node-name" placeholder="E.g., Great Orland Lake">
+        <label>Object Name</label>
+        <input type="text" id="node-name" placeholder="E.g., North Lake">
     </div>
     <div class="field-group">
-        <label>Classification Category</label>
-        <select id="node-category" onchange="adaptFormBySelection()">
-            <option value="city">City / Urban Sector</option>
-            <option value="lake">Lake / Hydro Graphic</option>
+        <label>Type Category</label>
+        <select id="node-category" onchange="adjustFormFields()">
+            <option value="city">City / Town District</option>
+            <option value="lake">Lake / Water Body</option>
             <option value="mountain">Mountain / Elevation Ridge</option>
-            <option value="road">Transport Route / Freeway</option>
-            <option value="police_station">Security Grid Command</option>
+            <option value="road">Road / Main Highway</option>
+            <option value="police_station">Police Station</option>
         </select>
     </div>
     <div class="field-group">
-        <label>Layer Partition Target</label>
+        <label>Map Layer Mapping</label>
         <select id="node-layer">
             <option value="default_layer">Default Baseline Layer</option>
-            <option value="custom_user_layer">New Custom Vector Layer</option>
+            <option value="custom_layer">New Custom Layer Layer</option>
         </select>
     </div>
     <div class="field-group">
-        <label>Asset Image Link Only</label>
-        <input type="text" id="node-img-url" placeholder="https://domain.com/photo.jpg">
+        <label>Image Link Only (No uploads)</label>
+        <input type="text" id="node-img-url" placeholder="https://site.com/image.jpg">
     </div>
     <div class="field-group">
         <label>Reference Verification Code</label>
-        <input type="text" id="node-ref" placeholder="REF-424-X">
+        <input type="text" id="node-ref" placeholder="REF-XXXX">
     </div>
 
-    <div id="dynamic-metrics-zone"></div>
+    <div id="dynamic-metrics"></div>
 
-    <div style="display:flex; gap:10px; margin-top:15px;">
-        <button class="btn-danger" style="flex:1" onclick="cancelDrawingWorkflow()">ABORT</button>
-        <button style="flex:2" onclick="commitNodeToSupabase()">SAVE TO SUPABASE</button>
+    <div style="display:flex; justify-content: flex-end; margin-top:15px;">
+        <button class="btn-cancel" onclick="closeDrawingWorkflow()">Cancel</button>
+        <button onclick="saveObjectToSupabase()">Save to Supabase</button>
     </div>
 </div>
 
 <script>
-    // System Configurations
+    // Database credentials setup connection parameters
     const SUPABASE_URL = "https://sgfhjqfkbumsphevxlrc.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_dCaPTVDjHAXrxH307dTk0g_p_ngBhud";
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let githubLayerData = null; 
-    let supabaseLayer = null;
-    let activeDrawnLayer = null;
+    let baseGithubLayer = null; 
+    let dynamicSupabaseLayer = null;
+    let newlyDrawnLayer = null;
 
-    // Initialize Map with clean Ultra-Modern Minimalist Obsidian style tile array
-    const map = L.map('map', { zoomControl: false }).setView([28.5383, -81.3792], 6);
+    // Initialize map using completely free CartoDB Dark Matter tiles (No API key locks)
+    const map = L.map('map', { zoomControl: false }).setView([0, 0], 2);
 
-    // Dark Cyberpunk Grid Tile Layer
-    L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', {
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         maxZoom: 20,
-        attribution: 'OrleGEO Matrix Systems'
+        attribution: '&copy; OpenStreetMap &copy; CARTO'
     }).addTo(map);
 
-    // Mount Leaflet Draw Engine Configs (Provides QGIS multi-point polygon vector execution)
-    const drawnItems = new L.FeatureGroup();
-    map.addLayer(drawnItems);
+    // Setup map editor controls (QGIS Vector simulation styles)
+    const drawnItemsGroup = new L.FeatureGroup();
+    map.addLayer(drawnItemsGroup);
     const drawControl = new L.Control.Draw({
-        edit: { featureGroup: drawnItems, remove: true },
+        edit: { featureGroup: drawnItemsGroup, remove: true },
         draw: { polygon: true, polyline: true, marker: true, rectangle: true, circle: false }
     });
     map.addControl(drawControl);
 
-    // Initial Database Run Check
+    // Trigger base loading events
     window.addEventListener('DOMContentLoaded', async () => {
-        document.getElementById('system-status').innerText = "FETCHING REPOSITORY DATA...";
-        await loadGitHubGeoJSON();
-        await syncLiveSupabaseLayers();
+        document.getElementById('system-status').innerText = "Loading data...";
+        await loadRepositoryGeoJSON();
+        await pullLiveSupabaseObjects();
     });
 
-    // 1. DYNAMIC GITHUB INTEGRATION DEPLOYMENT
-    async function loadGitHubGeoJSON() {
+    // 1. IMPORT DATA DIRECTLY FROM YOUR CORRECT REPOSITORY LINK
+    async function loadRepositoryGeoJSON() {
+        // Direct absolute raw link constructed from the provided path parameters
         const url = "https://raw.githubusercontent.com/ChrisAguahrz/ORLEGEO/main/%28R%29%20ORLAND%20424%20STATES.geojson";
         try {
             const response = await fetch(url);
-            if (!response.ok) throw new Error("Matrix configuration unreadable at remote origin.");
+            if (!response.ok) throw new Error("File not found on repository branch.");
             const geojson = await response.json();
 
-            githubLayerData = L.geoJSON(geojson, {
+            baseGithubLayer = L.geoJSON(geojson, {
                 style: {
                     color: "#00f3ff",
                     weight: 1.5,
-                    fillColor: "#9d00ff",
-                    fillOpacity: 0.12
+                    fillColor: "#ff0055",
+                    fillOpacity: 0.1
                 },
                 onEachFeature: (feature, layer) => {
-                    layer.on('click', () => {
-                        highlightFeatureDirect(layer, feature.properties);
+                    layer.on('click', (e) => {
+                        L.DomEvent.stopPropagation(e);
+                        showActiveHighlight(layer, feature.properties);
                     });
                 }
             }).addTo(map);
 
-            // Fit camera viewpoint automatically onto your coordinate grid bounds
-            map.fitBounds(githubLayerData.getBounds());
-            document.getElementById('system-status').innerText = "GITHUB LAYERS OPERATIONAL";
+            // Center view safely to fit the file boundaries perfectly
+            map.fitBounds(baseGithubLayer.getBounds());
+            document.getElementById('system-status').innerText = "GitHub Loaded";
         } catch (err) {
             console.error(err);
-            document.getElementById('system-status').innerText = "REPOSITORY SYNC FAILURE";
+            document.getElementById('system-status').innerText = "GitHub Load Error";
         }
     }
 
-    // 2. SUPABASE COMPONENT SYNCHRONIZATION AND RENDERING (Keeps data persistent on reload)
-    async function syncLiveSupabaseLayers() {
+    // 2. READ LIVE BACKEND LAYERS OUT OF SUPABASE ON APP STARTS / RELOADS
+    async function pullLiveSupabaseObjects() {
         try {
-            if (supabaseLayer) map.removeLayer(supabaseLayer);
+            if (dynamicSupabaseLayer) map.removeLayer(dynamicSupabaseLayer);
 
             const { data, error } = await supabase.rpc('get_orlegeo_geojson');
             if (error) throw error;
 
             if (data && data.features) {
-                supabaseLayer = L.geoJSON(data, {
+                dynamicSupabaseLayer = L.geoJSON(data, {
                     style: (feature) => {
-                        // Dynamically morph color palette based on feature category selections
-                        let catColor = "#00f3ff"; // Base Cyan
-                        if (feature.properties.category === 'lake') catColor = "#0055ff"; // Ocean Blue
-                        if (feature.properties.category === 'mountain') catColor = "#ffaa00"; // Peak Amber
-                        if (feature.properties.category === 'city') catColor = "#ff0055"; // Hot Crimson Neon
+                        let trackingColor = "#00f3ff"; // Cyan base
+                        if (feature.properties.category === 'lake') trackingColor = "#0055ff"; // Ocean styling color override
+                        if (feature.properties.category === 'mountain') trackingColor = "#eab308"; // Gold Amber
+                        if (feature.properties.category === 'city') trackingColor = "#ff0055"; // Hot pink
 
                         return {
                             color: "#ffffff",
                             weight: 2,
-                            fillColor: catColor,
-                            fillOpacity: 0.55
+                            fillColor: trackingColor,
+                            fillOpacity: 0.6
                         };
                     },
                     onEachFeature: (feature, layer) => {
-                        layer.on('click', () => {
-                            renderInspectorHUD(
+                        layer.on('click', (e) => {
+                            L.DomEvent.stopPropagation(e);
+                            displayInspectorPanel(
                                 feature.properties.name,
                                 feature.properties.layer_type,
                                 feature.properties.category,
@@ -229,40 +247,40 @@
                 }).addTo(map);
             }
         } catch (err) {
-            console.error("Supabase dynamic render fault:", err);
+            console.error("Database load error:", err);
         }
     }
 
-    // Handle Completed QGIS Drawing Vector Inputs
+    // Open editing view menu once vectors finish drawing on screen
     map.on(L.Draw.Event.CREATED, function (e) {
-        activeDrawnLayer = e.layer;
-        drawnItems.addLayer(activeDrawnLayer);
-        document.getElementById('qgis-panel').style.display = 'block';
-        adaptFormBySelection();
+        newlyDrawnLayer = e.layer;
+        drawnItemsGroup.addLayer(newlyDrawnLayer);
+        document.getElementById('creator-panel').style.display = 'block';
+        adjustFormFields();
     });
 
-    function adaptFormBySelection() {
+    function adjustFormFields() {
         const category = document.getElementById('node-category').value;
-        const container = document.getElementById('dynamic-metrics-zone');
-        let html = '';
+        const metricsBox = document.getElementById('dynamic-metrics');
+        let htmlBlock = '';
 
         if (category === 'lake') {
-            html = `
-                <div class="field-group"><label>Depth Value (Meters)</label><input type="number" id="dim-depth" value="80"></div>
-                <div class="field-group"><label>Calculated Size Area (Sq KM)</label><input type="number" id="dim-size" value="450"></div>`;
+            htmlBlock = `
+                <div class="field-group"><label>Depth Value (Meters)</label><input type="number" id="dim-depth" value="50"></div>
+                <div class="field-group"><label>Size Area (Sq KM)</label><input type="number" id="dim-size" value="150"></div>`;
         } else if (category === 'mountain') {
-            html = `<div class="field-group"><label>Peak Ridge Elevation (m)</label><input type="number" id="dim-height" value="4200"></div>`;
+            htmlBlock = `<div class="field-group"><label>Peak Elevation Height (m)</label><input type="number" id="dim-height" value="2800"></div>`;
         } else if (category === 'road') {
-            html = `<div class="field-group"><label>Structural Width (Lanes)</label><input type="number" id="dim-width" value="4"></div>`;
+            htmlBlock = `<div class="field-group"><label>Lanes Width</label><input type="number" id="dim-width" value="4"></div>`;
         }
-        container.innerHTML = html;
+        metricsBox.innerHTML = htmlBlock;
     }
 
-    // COMMITS DATA DIRECTLY TO SUPABASE (Will survive app refreshes)
-    async function commitNodeToSupabase() {
-        if (!activeDrawnLayer) return;
+    // SAVE OBJECT DATA AND VECTOR DATA DIRECTLY INTO SUPABASE (Survives browser reloads)
+    async function saveObjectToSupabase() {
+        if (!newlyDrawnLayer) return;
 
-        const name = document.getElementById('node-name').value || "Unnamed Object Vector";
+        const name = document.getElementById('node-name').value || "New Map Layer Node";
         const category = document.getElementById('node-category').value;
         const layer_type = document.getElementById('node-layer').value;
         const image_url = document.getElementById('node-img-url').value;
@@ -274,106 +292,105 @@
         if (document.getElementById('dim-height')) dimensions.height = document.getElementById('dim-height').value;
         if (document.getElementById('dim-width')) dimensions.width = document.getElementById('dim-width').value;
 
-        // Convert the structural drawn vector properties straight to standard GeoJSON
-        const geojsonStructure = activeDrawnLayer.toGeoJSON();
+        const geojsonFormat = newlyDrawnLayer.toGeoJSON();
 
         const payload = {
             name, category, layer_type, image_url, reference_number, dimensions,
-            geom: geojsonStructure.geometry
+            geom: geojsonFormat.geometry
         };
 
         const { data, error } = await supabase.from('orlegeo_map_objects').insert([payload]);
 
         if (error) {
-            alert("Database write error: " + error.message);
+            alert("Save failed: " + error.message);
         } else {
-            document.getElementById('qgis-panel').style.display = 'none';
-            drawnItems.clearLayers();
-            await syncLiveSupabaseLayers(); // Instantly update active view maps
+            document.getElementById('creator-panel').style.display = 'none';
+            drawnItemsGroup.clearLayers();
+            await pullLiveSupabaseObjects(); // Reload the layers into view automatically
         }
     }
 
-    // High Performance Structural Search: Handles explicit naming strings OR dynamic batch coordinates
-    async function executeMatrixSearch() {
+    // Search Box Parsing Handling Engine
+    async function searchMapMatrix() {
         const query = document.getElementById('search-query').value.trim();
         if (!query) return;
 
-        const batchCoordsRegex = /^[-+]?([1-9]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/;
+        // Coordinates check (E.g. 28.53, -81.37)
+        const coordinatePattern = /^[-+]?([1-9]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/;
 
-        if (batchCoordsRegex.test(query)) {
+        if (coordinatePattern.test(query)) {
             const [lat, lng] = query.split(',').map(Number);
             map.setView([lat, lng], 14);
-            L.circle([lat, lng], { color: '#ff0055', radius: 300 }).addTo(map);
-            renderInspectorHUD("Target Coordinates Node Locked", "Manual Input Coordinates Layer", "Injected Vector Node", "N/A", "");
+            L.circle([lat, lng], { color: '#ff0055', radius: 250 }).addTo(map);
+            displayInspectorPanel("Coordinate Point", "Manual Input Layer", "Coordinate Pin", "N/A", "");
             return;
         }
 
-        // Scan GitHub Layers
-        let found = false;
-        if (githubLayerData) {
-            githubLayerData.eachLayer((layer) => {
+        // Search through data fetched from GitHub
+        let itemLocated = false;
+        if (baseGithubLayer) {
+            baseGithubLayer.eachLayer((layer) => {
                 if (layer.feature.properties.name && layer.feature.properties.name.toLowerCase().includes(query.toLowerCase())) {
                     map.fitBounds(layer.getBounds());
-                    highlightFeatureDirect(layer, layer.feature.properties);
-                    found = true;
+                    showActiveHighlight(layer, layer.feature.properties);
+                    itemLocated = true;
                 }
             });
         }
 
-        if (!found) {
-            // Check Supabase if missing from base files
+        if (!itemLocated) {
+            // Check dynamic entries saved inside Supabase if missing from GitHub
             const { data, error } = await supabase.from('orlegeo_map_objects').select('*').ilike('name', `%${query}%`).maybeSingle();
             if (data) {
-                const tempLayer = L.geoJSON(data.geom);
-                map.fitBounds(tempLayer.getBounds());
-                renderInspectorHUD(data.name, data.layer_type, data.category, data.reference_number, data.image_url, data.dimensions);
+                const geometryLayer = L.geoJSON(data.geom);
+                map.fitBounds(geometryLayer.getBounds());
+                displayInspectorPanel(data.name, data.layer_type, data.category, data.reference_number, data.image_url, data.dimensions);
             } else {
-                alert("Vector footprint absent across global networks.");
+                alert("Location not found in database.");
             }
         }
     }
 
-    function highlightFeatureDirect(layer, props) {
-        // Flash targeted element with highlight colors
-        layer.setStyle({ color: '#ff0055', weight: 3, fillOpacity: 0.4 });
-        setTimeout(() => { githubLayerData.resetStyle(layer); }, 4000);
+    function showActiveHighlight(layer, props) {
+        layer.setStyle({ color: '#ff0055', weight: 4, fillOpacity: 0.3 });
+        setTimeout(() => { baseGithubLayer.resetStyle(layer); }, 5000);
 
-        renderInspectorHUD(
-            props.name || "Unknown County Entity",
-            "GitHub Repository Baseline",
-            props.category || "County Division Block",
-            props.id || "Unassigned",
+        displayInspectorPanel(
+            props.name || "Unnamed Area",
+            "GitHub File Source",
+            props.category || "County / District Space",
+            props.id || "N/A",
             props.image_link || ""
         );
     }
 
-    function renderInspectorHUD(name, layer, cat, ref, imgUrl, dimensions = {}) {
+    function displayInspectorPanel(name, layer, cat, ref, imgUrl, dimensions = {}) {
         document.getElementById('inspector').style.display = 'block';
         document.getElementById('inspect-name').innerText = name;
         document.getElementById('inspect-layer').innerText = layer;
         document.getElementById('inspect-category').innerText = cat;
         document.getElementById('inspect-ref').innerText = ref;
 
-        let dimBox = document.getElementById('inspect-dimensions');
+        let measurementsBox = document.getElementById('inspect-dimensions');
         if (Object.keys(dimensions).length > 0) {
-            dimBox.style.display = 'block';
-            dimBox.innerHTML = `<strong>Feature Metrics Array:</strong><br>` + Object.entries(dimensions).map(([k,v]) => `${k.toUpperCase()}: ${v}`).join('<br>');
+            measurementsBox.style.display = 'block';
+            measurementsBox.innerHTML = `<strong>Measurements Data:</strong><br>` + Object.entries(dimensions).map(([k,v]) => `${k.toUpperCase()}: ${v}`).join('<br>');
         } else {
-            dimBox.style.display = 'none';
+            measurementsBox.style.display = 'none';
         }
 
-        let imgEl = document.getElementById('inspect-image');
+        let imagePlaceholder = document.getElementById('inspect-image');
         if (imgUrl && imgUrl.startsWith('http')) {
-            imgEl.src = imgUrl;
-            imgEl.style.display = 'block';
+            imagePlaceholder.src = imgUrl;
+            imagePlaceholder.style.display = 'block';
         } else {
-            imgEl.style.display = 'none';
+            imagePlaceholder.style.display = 'none';
         }
     }
 
-    function cancelDrawingWorkflow() {
-        document.getElementById('qgis-panel').style.display = 'none';
-        drawnItems.clearLayers();
+    function closeDrawingWorkflow() {
+        document.getElementById('creator-panel').style.display = 'none';
+        drawnItemsGroup.clearLayers();
     }
 </script>
 </body>
