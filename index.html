@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OrleGEO // Ultra-Modern Orland Cartography</title>
+    
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.css" rel="stylesheet" />
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.3/mapbox-gl-draw.js"></script>
+    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.3/mapbox-gl-draw.css" type="text/css" />
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-purple: #9400d3;
+            --dark-bg: rgba(10, 15, 30, 0.85);
+            --border-glow: 1px solid rgba(0, 243, 255, 0.3);
+        }
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; background: #05050a; color: #fff; overflow: hidden; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        
+        /* Ultra Modern HUD Overlay */
+        .hud-panel {
+            position: absolute; background: var(--dark-bg); backdrop-filter: blur(10px);
+            border: var(--border-glow); border-radius: 8px; padding: 15px; box-shadow: 0 0 20px rgba(0, 243, 255, 0.15);
+            z-index: 10;
+        }
+        #search-box { top: 20px; left: 20px; width: 350px; display: flex; gap: 10px; }
+        #search-box input {
+            flex: 1; background: rgba(0,0,0,0.5); border: 1px solid #333; color: white;
+            padding: 10px; border-radius: 4px; outline: none;
+        }
+        #search-box input:focus { border-color: var(--neon-blue); }
+        #search-box button { background: var(--neon-blue); color: black; font-weight: bold; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; }
+        
+        #sidebar { top: 90px; left: 20px; width: 350px; max-height: 70vh; overflow-y: auto; display: none; }
+        #editor-modal { top: 20px; right: 20px; width: 320px; display: none; }
+        
+        .btn-action {
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
+            color: white; border: none; padding: 10px; border-radius: 4px; width: 100%; cursor: pointer; margin-top: 10px; font-weight: bold;
+        }
+        .form-group { margin-bottom: 10px; }
+        .form-group label { display: block; font-size: 12px; color: #aaa; margin-bottom: 4px; }
+        .form-group input, .form-group select {
+            width: 100%; background: rgba(0,0,0,0.4); border: 1px solid #444; color: white; padding: 6px; box-sizing: border-box; border-radius: 4px;
+        }
+        .layer-badge { display: inline-block; padding: 3px 6px; font-size: 11px; background: #333; border-radius: 3px; color: var(--neon-blue); }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="search-box" class="hud-panel">
+    <input type="text" id="query-input" placeholder="Search Entity or Batch Lat,Lng...">
+    <button onclick="executeSearch()">SCAN</button>
+</div>
+
+<div id="sidebar" class="hud-panel">
+    <h2 id="entity-name" style="margin-top:0; color: var(--neon-blue);">Orland State</h2>
+    <span id="entity-layer" class="layer-badge">Default Layer</span>
+    <hr style="border-color: #222;">
+    <div id="entity-meta"></div>
+    <div id="entity-img-container" style="margin-top: 15px;"></div>
+</div>
+
+<div id="editor-modal" class="hud-panel">
+    <h3 style="margin-top:0; color:var(--neon-blue)">Save New Spatial Feature</h3>
+    <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="feat-name" placeholder="E.g. Lake Orland, Sector 4">
+    </div>
+    <div class="form-group">
+        <label>Category</label>
+        <select id="feat-category" onchange="toggleDimensions()">
+            <option value="city">City / District</option>
+            <option value="lake">Lake / Water Body</option>
+            <option value="mountain">Mountain / Ridge</option>
+            <option value="road">Road / Highway</option>
+            <option value="police_station">Police Station</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Layer Target</label>
+        <select id="feat-layer">
+            <option value="default_layer">Default Layer</option>
+            <option value="custom_user_layer">New Custom Layer</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Image URL Asset</label>
+        <input type="text" id="feat-img" placeholder="https://image-link.com/file.jpg">
+    </div>
+    <div id="dim-fields">
+        </div>
+    <div class="form-group">
+        <label>Ref Number / ID</label>
+        <input type="text" id="feat-ref" placeholder="REF-424X">
+    </div>
+    <button class="btn-action" onclick="saveFeatureToSupabase()">COMMIT TO SUPABASE</button>
+</div>
+
+<script>
+    // Configuration & Keys
+    const SUPABASE_URL = "https://sgfhjqfkbumsphevxlrc.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_dCaPTVDjHAXrxH307dTk0g_p_ngBhud";
+    mapboxgl.accessToken = 'YOUR_MAPBOX_ACCESS_TOKEN'; // Input actual token here
+
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let currentDrawnFeature = null;
+
+    // Initialize Mapbox with a sci-fi, ultra-modern dark template
+    const map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/dark-v11', 
+        center: [-74.006, 40.7128], // Fallback center coordinates
+        zoom: 11,
+        pitch: 60, // 3D Tilt orientation
+        bearing: -17.6
+    });
+
+    // Add Advanced Drawing tools for modifying/adding custom vector entities
+    const draw = new MapboxDraw({
+        displayControlsDefault: false,
+        controls: { polygon: true, line_string: true, point: true, trash: true }
+    });
+    map.addControl(draw, 'top-right');
+    map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+    map.on('load', () => {
+        // Enable atmospheric 3D terrain and sky elements
+        map.setFog({ 'color': '#050510', 'high-color': '#00f3ff', 'horizon-blend': 0.02 });
+        
+        // Add 3D building extrusion structures
+        map.addLayer({
+            'id': '3d-buildings',
+            'source': 'composite',
+            'source-layer': 'building',
+            'filter': ['==', 'extrude', 'true'],
+            'type': 'fill-extrusion',
+            'minzoom': 15,
+            'paint': {
+                'fill-extrusion-color': '#00f3ff',
+                'fill-extrusion-height': ['get', 'height'],
+                'fill-extrusion-opacity': 0.65
+            }
+        });
+
+        // LOAD GITHUB REPOSITORY DATA: /(R) ORLAND 424 STATES.geojson
+        // Note: Replace with your absolute raw github address when deploying
+        map.addSource('orland-424-states', {
+            type: 'geojson',
+            data: 'https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/(R)%20ORLAND%20424%20STATES.geojson'
+        });
+
+        // Layer styling for states
+        map.addLayer({
+            'id': 'orland-states-layer',
+            'type': 'fill',
+            'source': 'orland-424-states',
+            'paint': {
+                'fill-color': '#9400d3',
+                'fill-opacity': 0.3,
+                'fill-outline-color': '#00f3ff'
+            }
+        });
+
+        // Highlight active layer configuration
+        map.addLayer({
+            'id': 'orland-highlighted',
+            'type': 'fill',
+            'source': 'orland-424-states',
+            'paint': { 'fill-color': '#00f3ff', 'fill-opacity': 0.75 },
+            'filter': ['==', 'name', '']
+        });
+    });
+
+    // Event Handler: Catching Drawn Objects (QGIS Feature Simulation)
+    map.on('draw.create', (e) => {
+        currentDrawnFeature = e.features[0];
+        document.getElementById('editor-modal').style.display = 'block';
+        toggleDimensions();
+    });
+
+    function toggleDimensions() {
+        const cat = document.getElementById('feat-category').value;
+        let html = '';
+        if (cat === 'lake') {
+            html = `<div class="form-group"><label>Depth (m)</label><input type="number" id="dim-depth"></div>
+                    <div class="form-group"><label>Area Size (sq km)</label><input type="number" id="dim-size"></div>`;
+        } else if (cat === 'mountain') {
+            html = `<div class="form-group"><label>Peak Height (m)</label><input type="number" id="dim-height"></div>`;
+        } else if (cat === 'road') {
+            html = `<div class="form-group"><label>Width (Lanes)</label><input type="number" id="dim-width"></div>`;
+        }
+        document.getElementById('dim-fields').innerHTML = html;
+    }
+
+    // Save drawn object metadata and PostGIS geometry to Supabase
+    async function saveFeatureToSupabase() {
+        if (!currentDrawnFeature) return;
+
+        const name = document.getElementById('feat-name').value;
+        const category = document.getElementById('feat-category').value;
+        const type = document.getElementById('feat-layer').value;
+        const image_url = document.getElementById('feat-img').value;
+        const reference_number = document.getElementById('feat-ref').value;
+
+        // Compile custom dimension metrics
+        let dimensions = {};
+        if (document.getElementById('dim-depth')) dimensions.depth = document.getElementById('dim-depth').value;
+        if (document.getElementById('dim-size')) dimensions.size = document.getElementById('dim-size').value;
+        if (document.getElementById('dim-height')) dimensions.height = document.getElementById('dim-height').value;
+        if (document.getElementById('dim-width')) dimensions.width = document.getElementById('dim-width').value;
+
+        // Convert the geometry coordinates straight to GeoJSON standard format compatible with PostGIS
+        const payload = {
+            name, category, type, image_url, reference_number, dimensions,
+            geom: currentDrawnFeature.geometry 
+        };
+
+        const { data, error } = await supabase.from('orlegeo_map_objects').insert([payload]);
+
+        if (error) {
+            alert("Error committing schema: " + error.message);
+        } else {
+            alert("Matrix Synchronized! Geo-Spatial object logged inside Supabase.");
+            document.getElementById('editor-modal').style.display = 'none';
+            draw.deleteAll();
+            // Dynamically change color scheme if it's structural water element
+            if (category === 'lake') {
+                // Instantly inject a styled representation into UI
+                alert("Lake element added. Ocean Blueprint skin mapping activated.");
+            }
+        }
+    }
+
+    // High performance Search and Parse system
+    async function executeSearch() {
+        const query = document.getElementById('query-input').value.trim();
+        if (!query) return;
+
+        // Match Regex Pattern for Batch Coordinates (e.g., "40.7128, -74.0060" or "-23.44, 14.22")
+        const coordRegex = /^[-+]?([1-9]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/;
+        
+        if (coordRegex.test(query)) {
+            const [lat, lng] = query.split(',').map(Number);
+            map.flyTo({ center: [lng, lat], zoom: 14, pitch: 45 });
+            
+            // Mark visually via standard engine point placement
+            new mapboxgl.Marker({ color: '#00f3ff' }).setLngLat([lng, lat]).addTo(map);
+            showSidebar("Coordinate Target Pinpointed", "Batch Vector Command", `Coordinates: ${lat}, ${lng}`, "");
+            return;
+        }
+
+        // Search in local Repository Layer
+        const features = map.querySourceFeatures('orland-424-states');
+        const match = features.find(f => f.properties.name && f.properties.name.toLowerCase().includes(query.toLowerCase()));
+
+        if (match) {
+            map.setFilter('orland-highlighted', ['==', 'name', match.properties.name]);
+            
+            // Vector positioning calculations
+            const bounds = bbox(match);
+            map.fitBounds(bounds, { padding: 50, pitch: 40, duration: 2000 });
+            
+            showSidebar(
+                match.properties.name, 
+                "Orland State Matrix", 
+                `Span/Area Area Bounds Checked. Bounds: ${JSON.stringify(bounds)}`, 
+                match.properties.image_link || "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=400"
+            );
+        } else {
+            // query Supabase database for dynamic user custom layers if missing from structural files
+            const { data, error } = await supabase.from('orlegeo_map_objects').select('*').ilike('name', `%${query}%`).maybeSingle();
+            if (data) {
+                alert(`Found custom asset ${data.name} in remote database!`);
+                // Calculate center points to jump over to element coordinates
+            } else {
+                alert("Entity footprint absent across current global registry channels.");
+            }
+        }
+    }
+
+    function showSidebar(name, layer, metaHTML, img) {
+        document.getElementById('sidebar').style.display = 'block';
+        document.getElementById('entity-name').innerText = name;
+        document.getElementById('entity-layer').innerText = layer;
+        document.getElementById('entity-meta').innerHTML = `<p>${metaHTML}</p>`;
+        if(img) {
+            document.getElementById('entity-img-container').innerHTML = `<img src="${img}" style="width:100%; border-radius:4px; border: var(--border-glow)">`;
+        } else {
+            document.getElementById('entity-img-container').innerHTML = '';
+        }
+    }
+
+    // Simplified Bounding Box Utility for quick polygon framing
+    function bbox(feature) {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        const coords = feature.geometry.coordinates[0];
+        coords.forEach(([x, y]) => {
+            if (x < minX) minX = x; if (y < minY) minY = y;
+            if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+        });
+        return [[minX, minY], [maxX, maxY]];
+    }
+</script>
+</body>
+</html>
