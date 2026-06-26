@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OrleGEO // Ultra-Modern Orland Cartography</title>
+    <title>OrleGEO // Tactical Command Matrix</title>
     
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.css" rel="stylesheet" />
@@ -14,299 +14,391 @@
 
     <style>
         :root {
-            --neon-blue: #00f3ff;
-            --neon-purple: #9400d3;
-            --dark-bg: rgba(10, 15, 30, 0.85);
-            --border-glow: 1px solid rgba(0, 243, 255, 0.3);
+            --neon-cyan: #00f3ff;
+            --neon-magenta: #ff0055;
+            --neon-purple: #9d00ff;
+            --cyber-grid: rgba(6, 12, 24, 0.9);
+            --glow-shadow: 0 0 15px rgba(0, 243, 255, 0.4);
         }
-        body { margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; background: #05050a; color: #fff; overflow: hidden; }
-        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
         
-        /* Ultra Modern HUD Overlay */
-        .hud-panel {
-            position: absolute; background: var(--dark-bg); backdrop-filter: blur(10px);
-            border: var(--border-glow); border-radius: 8px; padding: 15px; box-shadow: 0 0 20px rgba(0, 243, 255, 0.15);
-            z-index: 10;
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Courier New', Courier, monospace; background: #020205; color: #fff; overflow: hidden; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; height: 100%; }
+
+        /* Sci-Fi UI Overlays */
+        .hud-glass {
+            position: absolute; background: var(--cyber-grid); border: 1px solid var(--neon-cyan);
+            box-shadow: var(--glow-shadow); backdrop-filter: blur(8px); border-radius: 4px; padding: 15px; z-index: 10;
         }
-        #search-box { top: 20px; left: 20px; width: 350px; display: flex; gap: 10px; }
-        #search-box input {
-            flex: 1; background: rgba(0,0,0,0.5); border: 1px solid #333; color: white;
-            padding: 10px; border-radius: 4px; outline: none;
-        }
-        #search-box input:focus { border-color: var(--neon-blue); }
-        #search-box button { background: var(--neon-blue); color: black; font-weight: bold; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; }
+
+        #top-header { top: 15px; left: 15px; right: 15px; height: 50px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
+        .matrix-title { font-size: 20px; font-weight: bold; letter-spacing: 3px; color: var(--neon-cyan); text-shadow: var(--glow-shadow); }
+
+        #control-panel { top: 85px; left: 15px; width: 340px; max-height: 80vh; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
         
-        #sidebar { top: 90px; left: 20px; width: 350px; max-height: 70vh; overflow-y: auto; display: none; }
-        #editor-modal { top: 20px; right: 20px; width: 320px; display: none; }
+        .search-container { display: flex; gap: 5px; }
+        input, select { flex: 1; background: rgba(0,0,0,0.7); border: 1px solid #1a3a4a; color: var(--neon-cyan); padding: 8px; font-family: monospace; border-radius: 2px; }
+        input:focus, select:focus { border-color: var(--neon-magenta); outline: none; }
         
-        .btn-action {
-            background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
-            color: white; border: none; padding: 10px; border-radius: 4px; width: 100%; cursor: pointer; margin-top: 10px; font-weight: bold;
-        }
-        .form-group { margin-bottom: 10px; }
-        .form-group label { display: block; font-size: 12px; color: #aaa; margin-bottom: 4px; }
-        .form-group input, .form-group select {
-            width: 100%; background: rgba(0,0,0,0.4); border: 1px solid #444; color: white; padding: 6px; box-sizing: border-box; border-radius: 4px;
-        }
-        .layer-badge { display: inline-block; padding: 3px 6px; font-size: 11px; background: #333; border-radius: 3px; color: var(--neon-blue); }
+        button { background: transparent; border: 1px solid var(--neon-cyan); color: var(--neon-cyan); font-family: monospace; padding: 8px 12px; cursor: pointer; transition: 0.2s; font-weight: bold; }
+        button:hover { background: var(--neon-cyan); color: #000; box-shadow: var(--glow-shadow); }
+        .btn-danger { border-color: var(--neon-magenta); color: var(--neon-magenta); }
+        .btn-danger:hover { background: var(--neon-magenta); color: #000; }
+
+        .inspector-card { border-top: 1px solid rgba(0, 243, 255, 0.2); margin-top: 10px; padding-top: 10px; display: none; }
+        .asset-img { width: 100%; border: 1px solid var(--neon-cyan); margin-top: 10px; border-radius: 2px; display: none; }
+
+        /* QGIS Editor Mode Panel */
+        #qgis-panel { top: 85px; right: 15px; width: 320px; display: none; }
+        .field-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+        .field-group label { font-size: 11px; color: #88a8b8; text-transform: uppercase; }
+        
+        /* Custom Overrides for Mapbox Drawing controllers to look ultra modern */
+        .mapboxgl-ctrl-group { background: var(--cyber-grid) !important; border: 1px solid var(--neon-cyan) !important; }
+        .mapboxgl-ctrl-icon { filter: invert(1) sepia(1) saturate(5) hue-rotate(140deg); }
     </style>
 </head>
 <body>
 
 <div id="map"></div>
 
-<div id="search-box" class="hud-panel">
-    <input type="text" id="query-input" placeholder="Search Entity or Batch Lat,Lng...">
-    <button onclick="executeSearch()">SCAN</button>
+<div id="top-header" class="hud-glass">
+    <div class="matrix-title">OrleGEO // ORLAND MATRIX v424</div>
+    <div style="font-size: 12px; color: #5588a3;" id="system-status">SYS_STATUS: CONNECTED TO SUPABASE</div>
 </div>
 
-<div id="sidebar" class="hud-panel">
-    <h2 id="entity-name" style="margin-top:0; color: var(--neon-blue);">Orland State</h2>
-    <span id="entity-layer" class="layer-badge">Default Layer</span>
-    <hr style="border-color: #222;">
-    <div id="entity-meta"></div>
-    <div id="entity-img-container" style="margin-top: 15px;"></div>
-</div>
-
-<div id="editor-modal" class="hud-panel">
-    <h3 style="margin-top:0; color:var(--neon-blue)">Save New Spatial Feature</h3>
-    <div class="form-group">
-        <label>Name</label>
-        <input type="text" id="feat-name" placeholder="E.g. Lake Orland, Sector 4">
-    </div>
-    <div class="form-group">
-        <label>Category</label>
-        <select id="feat-category" onchange="toggleDimensions()">
-            <option value="city">City / District</option>
-            <option value="lake">Lake / Water Body</option>
-            <option value="mountain">Mountain / Ridge</option>
-            <option value="road">Road / Highway</option>
-            <option value="police_station">Police Station</option>
-        </select>
-    </div>
-    <div class="form-group">
-        <label>Layer Target</label>
-        <select id="feat-layer">
-            <option value="default_layer">Default Layer</option>
-            <option value="custom_user_layer">New Custom Layer</option>
-        </select>
-    </div>
-    <div class="form-group">
-        <label>Image URL Asset</label>
-        <input type="text" id="feat-img" placeholder="https://image-link.com/file.jpg">
-    </div>
-    <div id="dim-fields">
+<div id="control-panel" class="hud-glass">
+    <div>
+        <div class="field-group"><label>Query Registry (Name or Lat,Lng Batch)</label></div>
+        <div class="search-container">
+            <input type="text" id="search-query" placeholder="Enter County name or 'Lat,Lng'...">
+            <button onclick="executeMatrixSearch()">SCAN</button>
         </div>
-    <div class="form-group">
-        <label>Ref Number / ID</label>
-        <input type="text" id="feat-ref" placeholder="REF-424X">
     </div>
-    <button class="btn-action" onclick="saveFeatureToSupabase()">COMMIT TO SUPABASE</button>
+
+    <div id="inspector" class="inspector-card">
+        <h3 id="inspect-name" style="margin:0 0 5px 0; color: var(--neon-magenta);">Entity Name</h3>
+        <p style="font-size:12px; margin: 4px 0;"><strong>Layer Group:</strong> <span id="inspect-layer" style="color:var(--neon-cyan)">-</span></p>
+        <p style="font-size:12px; margin: 4px 0;"><strong>Category ID:</strong> <span id="inspect-category">-</span></p>
+        <p style="font-size:12px; margin: 4px 0;"><strong>System ID/Ref:</strong> <span id="inspect-ref">-</span></p>
+        <div id="inspect-dimensions" style="font-size:11px; color:#999; background:rgba(0,0,0,0.4); padding:5px; margin-top:5px;"></div>
+        <img id="inspect-image" class="asset-img" src="" alt="Asset Link View">
+    </div>
+</div>
+
+<div id="qgis-panel" class="hud-glass">
+    <h3 style="margin:0 0 15px 0; color:var(--neon-cyan); font-size:14px; letter-spacing:1px;">GRID VECTOR DETECTED: STRUCTURING</h3>
+    
+    <div class="field-group">
+        <label>Entity Name</label>
+        <input type="text" id="node-name" placeholder="E.g., West Orland Lake">
+    </div>
+    <div class="field-group">
+        <label>Vector Element Category</label>
+        <select id="node-category" onchange="adaptFormBySelection()">
+            <option value="city">City / District Segment</option>
+            <option value="lake">Lake / Hydro Component</option>
+            <option value="mountain">Mountain / Elevation Ridge</option>
+            <option value="road">Transport Route / Highway</option>
+            <option value="police_station">Security Grid Command</option>
+        </select>
+    </div>
+    <div class="field-group">
+        <label>Layer Partition Array</label>
+        <select id="node-layer">
+            <option value="default_layer">Default Baseline Layer</option>
+            <option value="custom_user_layer">Generate Alternative Layer Matrix</option>
+        </select>
+    </div>
+    <div class="field-group">
+        <label>External Asset Media Link Only</label>
+        <input type="text" id="node-img-url" placeholder="https://domain.com/map-preview.jpg">
+    </div>
+    <div class="field-group">
+        <label>Reference Tracking Signature ID</label>
+        <input type="text" id="node-ref" placeholder="REF-XXXX">
+    </div>
+
+    <div id="dynamic-metrics-zone"></div>
+
+    <div style="display:flex; gap:10px; margin-top:15px;">
+        <button class="btn-danger" style="flex:1" onclick="cancelVectorCom()--">ABORT</button>
+        <button style="flex:2" onclick="commitNodeToSupabase()">WRITE TO SUPABASE</button>
+    </div>
 </div>
 
 <script>
-    // Configuration & Keys
-    const SUPABASE_URL = "https://sgfhjqfkbumsphevxlrc.supabase.co";
+    // System Configurations
+    const SUPABASE_URL = "https://sgfhjqfkbumsphevxlrc.supabase.com";
     const SUPABASE_ANON_KEY = "sb_publishable_dCaPTVDjHAXrxH307dTk0g_p_ngBhud";
-    mapboxgl.accessToken = 'YOUR_MAPBOX_ACCESS_TOKEN'; // Input actual token here
+    
+    // !!! INJECT VALID MAPBOX PUBLIC TOKEN HERE FOR 3D ENGINE !!!
+    mapboxgl.accessToken = 'pk.eyJ1IjoiY29kZXJsZW8iLCJhIjoiY2wxeW56YW9sMHNscjNkcnp6NXB0bXN4MyJ9.XgW8Vq9uYJkS5p9_bXg_2Q'; 
 
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    let currentDrawnFeature = null;
+    let activeDrawnFeature = null;
 
-    // Initialize Mapbox with a sci-fi, ultra-modern dark template
+    // Build Map Context using an Ultra-Modern Tech/Holographic aesthetic
     const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/dark-v11', 
-        center: [-74.006, 40.7128], // Fallback center coordinates
-        zoom: 11,
-        pitch: 60, // 3D Tilt orientation
-        bearing: -17.6
+        style: 'mapbox://styles/mapbox/dark-v11', // Mapbox core base
+        center: [-81.3792, 28.5383], // Zoom initialized directly inside fictional target coordinates
+        zoom: 6,
+        pitch: 55, 
+        bearing: -10,
+        antialias: true
     });
 
-    // Add Advanced Drawing tools for modifying/adding custom vector entities
-    const draw = new MapboxDraw({
+    // QGIS Polygon, Line & Point Drawing Utility Engine Controls Setup
+    const drawEngine = new MapboxDraw({
         displayControlsDefault: false,
-        controls: { polygon: true, line_string: true, point: true, trash: true }
+        controls: { polygon: true, line_string: true, point: true, trash: true },
+        styles: [
+            { 'id': 'gl-draw-polygon-fill-inactive', 'type': 'fill', 'paint': { 'fill-color': '#00f3ff', 'fill-opacity': 0.1 } },
+            { 'id': 'gl-draw-polygon-stroke-active', 'type': 'line', 'paint': { 'line-color': '#ff0055', 'line-width': 2, 'line-dasharray': [2, 2] } },
+            { 'id': 'gl-draw-line-active', 'type': 'line', 'paint': { 'line-color': '#ff0055', 'line-width': 3 } },
+            { 'id': 'gl-draw-point-point-stroke-inactive', 'type': 'circle', 'paint': { 'circle-radius': 6, 'circle-color': '#00f3ff' } }
+        ]
     });
-    map.addControl(draw, 'top-right');
-    map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+    map.addControl(drawEngine, 'top-right');
 
-    map.on('load', () => {
-        // Enable atmospheric 3D terrain and sky elements
-        map.setFog({ 'color': '#050510', 'high-color': '#00f3ff', 'horizon-blend': 0.02 });
-        
-        // Add 3D building extrusion structures
-        map.addLayer({
-            'id': '3d-buildings',
-            'source': 'composite',
-            'source-layer': 'building',
-            'filter': ['==', 'extrude', 'true'],
-            'type': 'fill-extrusion',
-            'minzoom': 15,
-            'paint': {
-                'fill-extrusion-color': '#00f3ff',
-                'fill-extrusion-height': ['get', 'height'],
-                'fill-extrusion-opacity': 0.65
-            }
-        });
+    map.on('load', async () => {
+        // Ultra-modern configurations: Add deep neon sky atmospheric scattering effects
+        map.setFog({ 'color': '#010206', 'high-color': '#00f3ff', 'space-color': '#000000', 'horizon-blend': 0.03 });
 
-        // LOAD GITHUB REPOSITORY DATA: /(R) ORLAND 424 STATES.geojson
-        // Note: Replace with your absolute raw github address when deploying
-        map.addSource('orland-424-states', {
+        // Add 3D Cyber-Building Grid Profiles
+        if (map.getLayer('building')) {
+            map.setPaintProperty('building', 'fill-extrusion-color', '#004f66');
+            map.setPaintProperty('building', 'fill-extrusion-opacity', 0.8);
+            map.setPaintProperty('building', 'fill-extrusion-height', ['get', 'height']);
+        }
+
+        // 1. INJECT GITHUB REPOSITORY GEOJSON LAYER (Baseline Fictional States Setup)
+        // Accessing path natively via raw delivery engines
+        map.addSource('github-orland-source', {
             type: 'geojson',
-            data: 'https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/(R)%20ORLAND%20424%20STATES.geojson'
+            data: 'https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_GITHUB_REPO_NAME/main/%28R%29%20ORLAND%20424%20STATES.geojson'
         });
 
-        // Layer styling for states
+        // Setup base neon outline profiles for GitHub structural states
         map.addLayer({
-            'id': 'orland-states-layer',
+            'id': 'github-states-layer',
             'type': 'fill',
-            'source': 'orland-424-states',
+            'source': 'github-orland-source',
             'paint': {
-                'fill-color': '#9400d3',
-                'fill-opacity': 0.3,
+                'fill-color': '#9d00ff',
+                'fill-opacity': 0.15,
                 'fill-outline-color': '#00f3ff'
             }
         });
 
-        // Highlight active layer configuration
+        // Glow Layer for high-impact target tracking selections
         map.addLayer({
-            'id': 'orland-highlighted',
+            'id': 'github-states-highlighted',
             'type': 'fill',
-            'source': 'orland-424-states',
-            'paint': { 'fill-color': '#00f3ff', 'fill-opacity': 0.75 },
-            'filter': ['==', 'name', '']
+            'source': 'github-orland-source',
+            'paint': { 'fill-color': '#ff0055', 'fill-opacity': 0.5, 'fill-outline-color': '#ffffff' },
+            'filter': ['==', ['get', 'name'], '']
         });
+
+        // 2. READ LIVE DATA DIRECTLY FROM SUPABASE STORAGE LAYERS (Persistent Sync)
+        await renderPersistedSupabaseLayers();
     });
 
-    // Event Handler: Catching Drawn Objects (QGIS Feature Simulation)
-    map.on('draw.create', (e) => {
-        currentDrawnFeature = e.features[0];
-        document.getElementById('editor-modal').style.display = 'block';
-        toggleDimensions();
-    });
+    // Pull from Supabase PostGIS function and mount directly onto current active 3D layer stack
+    async function renderPersistedSupabaseLayers() {
+        try {
+            // Invokes RPC function configured inside database migration workspace
+            const { data, error } = await supabase.rpc('get_orlegeo_geojson');
+            if (error) throw error;
 
-    function toggleDimensions() {
-        const cat = document.getElementById('feat-category').value;
-        let html = '';
-        if (cat === 'lake') {
-            html = `<div class="form-group"><label>Depth (m)</label><input type="number" id="dim-depth"></div>
-                    <div class="form-group"><label>Area Size (sq km)</label><input type="number" id="dim-size"></div>`;
-        } else if (cat === 'mountain') {
-            html = `<div class="form-group"><label>Peak Height (m)</label><input type="number" id="dim-height"></div>`;
-        } else if (cat === 'road') {
-            html = `<div class="form-group"><label>Width (Lanes)</label><input type="number" id="dim-width"></div>`;
+            // Remove previous layers if they exist to prevent caching errors
+            if (map.getLayer('supabase-objects-layer')) map.removeLayer('supabase-objects-layer');
+            if (map.getSource('supabase-live-source')) map.removeSource('supabase-live-source');
+
+            // Construct new clean data pipeline tracking modifications
+            map.addSource('supabase-live-source', {
+                type: 'geojson',
+                data: data || { type: 'FeatureCollection', features: [] }
+            });
+
+            // Smart Styling: Render colors adaptively matching feature classifications
+            map.addLayer({
+                'id': 'supabase-objects-layer',
+                'type': 'fill',
+                'source': 'supabase-live-source',
+                'paint': {
+                    'fill-color': [
+                        'match', ['get', 'category'],
+                        'lake', '#0055ff',         // Turns Ocean Blue instantly
+                        'mountain', '#445566',     // Rock Gray
+                        'city', '#ff0055',         // Cyber Punch Pink
+                        '#00f3ff'                  // Base Cyan default fall-through
+                    ],
+                    'fill-opacity': 0.5,
+                    'fill-outline-color': '#ffffff'
+                }
+            });
+            
+            document.getElementById('system-status').innerText = `SYS_STATUS: RADAR LOADED (${data?.features?.length || 0} PERSISTED OBJECTS)`;
+        } catch (err) {
+            console.error("Failed synchronizing baseline metrics from Supabase DB:", err);
+            document.getElementById('system-status').innerText = "SYS_STATUS: DATA SYNC ERROR";
         }
-        document.getElementById('dim-fields').innerHTML = html;
     }
 
-    // Save drawn object metadata and PostGIS geometry to Supabase
-    async function saveFeatureToSupabase() {
-        if (!currentDrawnFeature) return;
+    // Capture user interface actions created via vector drawing interfaces
+    map.on('draw.create', (e) => {
+        activeDrawnFeature = e.features[0];
+        document.getElementById('qgis-panel').style.display = 'block';
+        adaptFormBySelection();
+    });
 
-        const name = document.getElementById('feat-name').value;
-        const category = document.getElementById('feat-category').value;
-        const type = document.getElementById('feat-layer').value;
-        const image_url = document.getElementById('feat-img').value;
-        const reference_number = document.getElementById('feat-ref').value;
+    function adaptFormBySelection() {
+        const category = document.getElementById('node-category').value;
+        const container = document.getElementById('dynamic-metrics-zone');
+        container.innerHTML = ''; // Reset UI fields
 
-        // Compile custom dimension metrics
+        let dynamicHTML = '';
+        if (category === 'lake') {
+            dynamicHTML = `
+                <div class="field-group"><label>Water Depth (Meters)</label><input type="number" id="dim-depth" value="45"></div>
+                <div class="field-group"><label>Total Area Size (Sq KM)</label><input type="number" id="dim-size" value="120"></div>`;
+        } else if (category === 'mountain') {
+            dynamicHTML = `<div class="field-group"><label>Peak Elevation Height (m)</label><input type="number" id="dim-height" value="3400"></div>`;
+        } else if (category === 'road') {
+            dynamicHTML = `<div class="field-group"><label>Highway Structural Width (Lanes)</label><input type="number" id="dim-width" value="6"></div>`;
+        }
+        container.innerHTML = dynamicHTML;
+    }
+
+    // WRITE PERSISTED SPATIAL POLYGONS OR INFRASTRUCTURE DIRECTLY INTO SUPABASE
+    async function commitNodeToSupabase() {
+        if (!activeDrawnFeature) return;
+
+        const name = document.getElementById('node-name').value || "Unnamed Vector Node";
+        const category = document.getElementById('node-category').value;
+        const layer_type = document.getElementById('node-layer').value;
+        const image_url = document.getElementById('node-img-url').value;
+        const reference_number = document.getElementById('node-ref').value;
+
+        // Bundle custom dynamic QGIS parameters safely 
         let dimensions = {};
         if (document.getElementById('dim-depth')) dimensions.depth = document.getElementById('dim-depth').value;
         if (document.getElementById('dim-size')) dimensions.size = document.getElementById('dim-size').value;
         if (document.getElementById('dim-height')) dimensions.height = document.getElementById('dim-height').value;
         if (document.getElementById('dim-width')) dimensions.width = document.getElementById('dim-width').value;
 
-        // Convert the geometry coordinates straight to GeoJSON standard format compatible with PostGIS
         const payload = {
-            name, category, type, image_url, reference_number, dimensions,
-            geom: currentDrawnFeature.geometry 
+            name, category, layer_type, image_url, reference_number, dimensions,
+            geom: activeDrawnFeature.geometry // Commits standard GeoJSON dictionary array straight to PostGIS parsing structures
         };
 
         const { data, error } = await supabase.from('orlegeo_map_objects').insert([payload]);
 
         if (error) {
-            alert("Error committing schema: " + error.message);
+            alert("Matrix Commit Fault: " + error.message);
         } else {
-            alert("Matrix Synchronized! Geo-Spatial object logged inside Supabase.");
-            document.getElementById('editor-modal').style.display = 'none';
-            draw.deleteAll();
-            // Dynamically change color scheme if it's structural water element
-            if (category === 'lake') {
-                // Instantly inject a styled representation into UI
-                alert("Lake element added. Ocean Blueprint skin mapping activated.");
-            }
+            document.getElementById('qgis-panel').style.display = 'none';
+            drawEngine.deleteAll(); // Clean designer board workspace interface
+            
+            // Trigger dynamic re-fetch execution to paint database elements to screen
+            await renderPersistedSupabaseLayers();
         }
     }
 
-    // High performance Search and Parse system
-    async function executeSearch() {
-        const query = document.getElementById('query-input').value.trim();
+    // High performance search execution handling: supports both explicit naming lookups and coordinates batch arrays
+    async function executeMatrixSearch() {
+        const query = document.getElementById('search-query').value.trim();
         if (!query) return;
 
-        // Match Regex Pattern for Batch Coordinates (e.g., "40.7128, -74.0060" or "-23.44, 14.22")
-        const coordRegex = /^[-+]?([1-9]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/;
-        
-        if (coordRegex.test(query)) {
+        // Catch Batch Coordinate strings (e.g. "28.5383, -81.3792")
+        const batchCoordsRegex = /^[-+]?([1-9]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/;
+
+        if (batchCoordsRegex.test(query)) {
             const [lat, lng] = query.split(',').map(Number);
-            map.flyTo({ center: [lng, lat], zoom: 14, pitch: 45 });
             
-            // Mark visually via standard engine point placement
-            new mapboxgl.Marker({ color: '#00f3ff' }).setLngLat([lng, lat]).addTo(map);
-            showSidebar("Coordinate Target Pinpointed", "Batch Vector Command", `Coordinates: ${lat}, ${lng}`, "");
+            // Ultra Modern Dynamic Frame Translation Shift zoom operation
+            map.flyTo({ center: [lng, lat], zoom: 13, pitch: 65, bearing: 40, duration: 2500 });
+            
+            // Pinpoint targeted query space via a custom element marker
+            new mapboxgl.Marker({ color: '#ff0055' }).setLngLat([lng, lat]).addTo(map);
+            
+            renderInspectorHUD("Batch Coordinates Node Locked", "Manual Entry System Overlay", "System Injected Vector Coordinate Coordinates Pin", `Lat: ${lat} <br>Lng: ${lng}`, "");
             return;
         }
 
-        // Search in local Repository Layer
-        const features = map.querySourceFeatures('orland-424-states');
-        const match = features.find(f => f.properties.name && f.properties.name.toLowerCase().includes(query.toLowerCase()));
+        // Execute local spatial analysis searching inside loaded GitHub State Matrices
+        const sourceFeatures = map.querySourceFeatures('github-orland-source');
+        const matchedState = sourceFeatures.find(f => f.properties.name && f.properties.name.toLowerCase().includes(query.toLowerCase()));
 
-        if (match) {
-            map.setFilter('orland-highlighted', ['==', 'name', match.properties.name]);
+        if (matchedState) {
+            map.setFilter('github-states-highlighted', ['==', ['get', 'name'], matchedState.properties.name]);
             
-            // Vector positioning calculations
-            const bounds = bbox(match);
-            map.fitBounds(bounds, { padding: 50, pitch: 40, duration: 2000 });
-            
-            showSidebar(
-                match.properties.name, 
-                "Orland State Matrix", 
-                `Span/Area Area Bounds Checked. Bounds: ${JSON.stringify(bounds)}`, 
-                match.properties.image_link || "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=400"
+            // Calculate vector boundaries structure dynamically
+            const bounds = calculateFeatureBBox(matchedState);
+            map.fitBounds(bounds, { padding: 80, pitch: 50, bearing: -15, duration: 2000 });
+
+            renderInspectorHUD(
+                matchedState.properties.name,
+                "GitHub Static Core Repo Layer",
+                matchedState.properties.category || "County / State Block",
+                matchedState.properties.id || "N/A Signature Track",
+                matchedState.properties.image_link || ""
             );
         } else {
-            // query Supabase database for dynamic user custom layers if missing from structural files
+            // If it's missing from GitHub, check the dynamic entries saved in Supabase
             const { data, error } = await supabase.from('orlegeo_map_objects').select('*').ilike('name', `%${query}%`).maybeSingle();
             if (data) {
-                alert(`Found custom asset ${data.name} in remote database!`);
-                // Calculate center points to jump over to element coordinates
+                // If it is a spatial feature polygon point setup, focus map directly to it
+                if (data.geom && data.geom.coordinates) {
+                    let targetCenter = data.geom.type === 'Point' ? data.geom.coordinates : data.geom.coordinates[0][0];
+                    map.flyTo({ center: targetCenter, zoom: 12, pitch: 45 });
+                }
+                renderInspectorHUD(data.name, data.layer_type, data.category, data.reference_number, data.image_url, data.dimensions);
             } else {
-                alert("Entity footprint absent across current global registry channels.");
+                alert("Target identity could not be isolated across registered spatial database vectors.");
             }
         }
     }
 
-    function showSidebar(name, layer, metaHTML, img) {
-        document.getElementById('sidebar').style.display = 'block';
-        document.getElementById('entity-name').innerText = name;
-        document.getElementById('entity-layer').innerText = layer;
-        document.getElementById('entity-meta').innerHTML = `<p>${metaHTML}</p>`;
-        if(img) {
-            document.getElementById('entity-img-container').innerHTML = `<img src="${img}" style="width:100%; border-radius:4px; border: var(--border-glow)">`;
+    function renderInspectorHUD(name, layer, cat, ref, imgUrl, dimensions = {}) {
+        document.getElementById('inspector').style.display = 'block';
+        document.getElementById('inspect-name').innerText = name;
+        document.getElementById('inspect-layer').innerText = layer;
+        document.getElementById('inspect-category').innerText = cat;
+        document.getElementById('inspect-ref').innerText = ref;
+
+        let dimBox = document.getElementById('inspect-dimensions');
+        if(Object.keys(dimensions).length > 0) {
+            dimBox.style.display = 'block';
+            dimBox.innerHTML = `<strong>Metrics Array:</strong><br>` + Object.entries(dimensions).map(([k,v]) => `${k.toUpperCase()}: ${v}`).join('<br>');
         } else {
-            document.getElementById('entity-img-container').innerHTML = '';
+            dimBox.style.display = 'none';
+        }
+
+        let imgEl = document.getElementById('inspect-image');
+        if (imgUrl && imgUrl.startsWith('http')) {
+            imgEl.src = imgUrl;
+            imgEl.style.display = 'block';
+        } else {
+            imgEl.style.display = 'none';
         }
     }
 
-    // Simplified Bounding Box Utility for quick polygon framing
-    function bbox(feature) {
+    function calculateFeatureBBox(feature) {
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        const coords = feature.geometry.coordinates[0];
+        // Support deep checking vector bounds coordinates tracking arrays
+        const coords = feature.geometry.type === 'Polygon' ? feature.geometry.coordinates[0] : [feature.geometry.coordinates];
         coords.forEach(([x, y]) => {
             if (x < minX) minX = x; if (y < minY) minY = y;
             if (x > maxX) maxX = x; if (y > maxY) maxY = y;
         });
         return [[minX, minY], [maxX, maxY]];
+    }
+
+    function cancelVectorCom() {
+        document.getElementById('qgis-panel').style.display = 'none';
+        drawEngine.deleteAll();
     }
 </script>
 </body>
