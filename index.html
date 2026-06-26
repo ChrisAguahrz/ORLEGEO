@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OrleGEO Map</title>
+    <title>OrleGEO Matrix</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -12,321 +12,410 @@
 
     <style>
         :root {
-            --bg-main: #09090b;
-            --panel-bg: #18181b;
-            --accent: #22d3ee;
-            --text-main: #f4f4f5;
-            --text-muted: #a1a1aa;
-            --border: #27272a;
+            --bg-grid: #06070d;
+            --panel-solid: #0d111c;
+            --neon-blue: #00f3ff;
+            --neon-dim: rgba(0, 243, 255, 0.2);
+            --border-glow: #1a2638;
+            --text-light: #e2e8f0;
+            --text-dark: #64748b;
         }
         
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body, html { width: 100%; height: 100%; background: var(--bg-main); color: var(--text-main); overflow: hidden; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; }
+        body, html { width: 100%; height: 100%; background: var(--bg-grid); color: var(--text-light); overflow: hidden; }
         
-        #map { width: 100%; height: 100%; position: absolute; top: 0; bottom: 0; z-index: 1; }
-
-        /* Clean Top Banner */
-        .header-bar {
-            position: absolute; top: 12px; left: 12px; right: 12px; height: 50px;
-            background: var(--panel-bg); border: 1px solid var(--border);
-            border-radius: 8px; display: flex; align-items: center; justify-content: space-between;
-            padding: 0 16px; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-        }
-        .header-title { font-size: 16px; font-weight: 600; color: #fff; }
-        .status-text { font-size: 12px; color: var(--accent); font-weight: 500; }
-
-        /* Floating Info & Control Drawer */
-        .control-drawer {
-            position: absolute; bottom: 16px; left: 12px; right: 12px;
-            background: var(--panel-bg); border: 1px solid var(--border);
-            border-radius: 12px; padding: 16px; z-index: 1000;
-            max-height: 45vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        /* Sci-Fi Virtual Tech Grid System Overlay Background */
+        #map { 
+            width: 100%; height: 100%; position: absolute; top: 0; bottom: 0; z-index: 1; 
+            background-color: var(--bg-grid);
+            background-image: 
+                linear-gradient(rgba(0, 243, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px);
+            background-size: 30px 30px;
         }
 
-        .search-row { display: flex; gap: 8px; margin-bottom: 12px; }
-        input, select {
-            flex: 1; background: var(--bg-main); border: 1px solid var(--border);
-            color: #fff; padding: 12px; border-radius: 8px; font-size: 14px; outline: none;
+        /* Standard Minimal HUD Framework */
+        .hud-element {
+            position: absolute; background: var(--panel-solid); border: 1px solid var(--border-glow);
+            border-radius: 4px; z-index: 1000; box-shadow: 0 0 15px rgba(0,0,0,0.7);
         }
-        input:focus { border-color: var(--accent); }
+
+        .header-node { top: 12px; left: 12px; right: 12px; height: 45px; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; }
+        .app-title { font-size: 14px; font-weight: bold; color: var(--neon-blue); letter-spacing: 2px; }
+
+        .control-terminal { bottom: 16px; left: 12px; right: 12px; padding: 15px; max-height: 48vh; overflow-y: auto; }
         
-        button {
-            background: var(--accent); color: #09090b; border: none; font-weight: 600;
-            padding: 12px 20px; border-radius: 8px; font-size: 14px; cursor: pointer;
+        /* Auto Suggest Input Array Styles */
+        .search-system { position: relative; display: flex; gap: 8px; margin-bottom: 10px; }
+        input, select { flex: 1; background: #020408; border: 1px solid var(--border-glow); color: #fff; padding: 12px; font-size: 13px; outline: none; border-radius: 2px; }
+        input:focus { border-color: var(--neon-blue); }
+        
+        .suggestion-matrix {
+            position: absolute; top: 46px; left: 0; right: 85px; background: var(--panel-solid);
+            border: 1px solid var(--border-glow); max-height: 150px; overflow-y: auto; z-index: 2000; display: none;
         }
-        button:active { opacity: 0.9; }
-        .btn-secondary { background: #27272a; color: #fff; }
+        .suggest-row { padding: 10px; cursor: pointer; font-size: 12px; border-bottom: 1px solid #161f30; }
+        .suggest-row:hover { background: var(--neon-dim); color: var(--neon-blue); }
 
-        /* Output Card styling */
-        .data-card { display: none; border-top: 1px solid var(--border); margin-top: 12px; padding-top: 12px; }
-        .data-title { font-size: 18px; font-weight: 600; color: var(--accent); margin-bottom: 6px; }
-        .data-item { font-size: 13px; color: var(--text-muted); margin: 4px 0; }
-        .data-img { width: 100%; max-height: 160px; object-fit: cover; border-radius: 6px; margin-top: 10px; display: none; border: 1px solid var(--border); }
+        button { background: transparent; border: 1px solid var(--neon-blue); color: var(--neon-blue); padding: 10px 15px; font-size: 12px; cursor: pointer; font-weight: bold; }
+        button:active { background: var(--neon-blue); color: #000; }
+        .btn-utility { border-color: var(--text-dark); color: var(--text-dark); }
 
-        /* Editing Dialog Interface styling */
-        #editor-drawer { top: 74px; bottom: auto; display: none; max-height: 70vh; }
-        .input-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
-        .input-group label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+        /* Output Cards Layout */
+        .data-card { display: none; border-top: 1px solid var(--border-glow); margin-top: 12px; padding-top: 12px; }
+        .data-title { font-size: 16px; color: var(--neon-blue); margin-bottom: 6px; }
+        .data-text { font-size: 12px; color: #94a3b8; margin: 4px 0; }
+        .data-photo { width: 100%; max-height: 150px; object-fit: cover; margin-top: 10px; display: none; border: 1px solid var(--border-glow); }
 
-        /* Map UI Reset fix for touch */
-        .leaflet-touch .leaflet-draw-toolbar { margin-top: 65px !important; }
+        /* Editor Window Drawer Context */
+        #creator-node { top: 70px; bottom: auto; display: none; }
+        .form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: 12px; }
+        
+        /* Technical Toolbar Help Tooltip HUD */
+        .icon-help-legend { position: absolute; top: 70px; left: 12px; padding: 10px; font-size: 11px; max-width: 220px; pointer-events: none; opacity: 0.75; }
+        .legend-title { color: var(--neon-blue); font-weight: bold; margin-bottom: 4px; text-transform: uppercase; }
     </style>
 </head>
 <body>
 
 <div id="map"></div>
 
-<div class="header-bar">
-    <div class="header-title">OrleGEO Map</div>
-    <div class="status-text" id="map-status">Syncing Dataset...</div>
+<div class="header-node hud-element">
+    <div class="app-title">OrleGEO // VIRTUAL VPN DISPLAY</div>
+    <button class="btn-utility" onclick="triggerDataDownload()">DOWNLOAD MATRIX MAP</button>
 </div>
 
-<div id="control-drawer" class="control-drawer">
-    <div class="search-row">
-        <input type="text" id="search-input" placeholder="Search a county or paste Lat,Lng...">
-        <button onclick="runMapSearch()">Search</button>
+<div class="icon-help-legend hud-element">
+    <div class="legend-title">Toolbar Actions</div>
+    <p>⚡ Lines Icon: Draw Rivers/Roads</p>
+    <p>⚡ Shape Icon: Draw Lakes/Counties</p>
+    <p>⚡ Square Icon: Draw Rect Regions</p>
+    <p>⚡ Pin Icon: Place Stations/Points</p>
+</div>
+
+<div id="control-terminal" class="control-terminal hud-element">
+    <div class="search-system">
+        <input type="text" id="target-search" placeholder="Type County Name or Paste 'Lat,Lng'..." oninput="evaluateSuggestions(this.value)">
+        <button onclick="executeMatrixSearch()">SCAN</button>
+        <div id="suggestion-box" class="suggestion-matrix"></div>
     </div>
 
-    <div id="inspector-card" class="data-card">
-        <h3 id="view-name" class="data-title">Location Information</h3>
-        <p class="data-item"><strong>Category Type:</strong> <span id="view-category">-</span></p>
-        <p class="data-item"><strong>ID Reference:</strong> <span id="view-ref">-</span></p>
-        <div id="view-meta" style="font-size: 13px; background: #09090b; padding: 10px; margin-top: 8px; border-radius: 6px; display: none;"></div>
-        <img id="view-image" class="data-img" src="" alt="Attached view asset">
+    <div id="inspector-hud" class="data-card">
+        <h3 id="lbl-name" class="data-title">Target Node Identity</h3>
+        <p class="data-text"><strong>Classification:</strong> <span id="lbl-category">-</span></p>
+        <p class="data-text"><strong>Reference Track ID:</strong> <span id="lbl-ref">-</span></p>
+        <div id="lbl-metrics" style="font-size:12px; background:#020408; padding:8px; margin-top:6px; line-height:1.6;"></div>
+        <img id="lbl-img" class="data-photo" src="" alt="External Asset File Preview Link">
     </div>
 </div>
 
-<div id="editor-drawer" class="control-drawer">
-    <h3 style="margin-bottom: 12px; font-size: 16px;">Create New Object</h3>
+<div id="creator-node" class="control-terminal hud-element">
+    <h3 style="font-size:14px; margin-bottom:10px; color:var(--neon-blue)">INITIALIZE LAYER COMPONENT</h3>
     
-    <div class="input-group">
-        <label>Name</label>
-        <input type="text" id="add-name" placeholder="E.g., Central Valley">
+    <div class="form-row">
+        <label>Designation Title Name</label>
+        <input type="text" id="set-name" placeholder="E.g., Sector 4 Water Reserve">
     </div>
-    <div class="input-group">
-        <label>Type Category</label>
-        <select id="add-category" onchange="toggleFormFields()">
-            <option value="city">City / District Space</option>
-            <option value="lake">Lake / Ocean Color</option>
-            <option value="mountain">Mountain / Elevation Ridge</option>
-            <option value="road">Road / Main Route</option>
+    <div class="form-row">
+        <label>Vector Geometry Type</label>
+        <select id="set-category" onchange="buildDynamicMetricsForm()">
+            <option value="city">City Sector Zone</option>
+            <option value="lake">Lake / Hydro Component</option>
+            <option value="mountain">Mountain Range System</option>
+            <option value="road">Traffic Route Line</option>
         </select>
     </div>
-    <div class="input-group">
-        <label>Image URL Link</label>
-        <input type="text" id="add-img" placeholder="https://example.com/preview.jpg">
+    <div class="form-row">
+        <label>External Image Hyperlink Asset</label>
+        <input type="text" id="set-img" placeholder="https://site.com/image.png">
     </div>
-    <div class="input-group">
-        <label>Reference Code / ID</label>
-        <input type="text" id="add-ref" placeholder="ID-424">
+    <div class="form-row">
+        <label>Tracking Identification Number</label>
+        <input type="text" id="set-ref" placeholder="REF-424">
     </div>
 
-    <div id="extra-fields"></div>
+    <div id="dynamic-input-slots"></div>
 
-    <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
-        <button class="btn-secondary" onclick="abortCreation()">Cancel</button>
-        <button onclick="saveLocalFeature()">Display on Map</button>
+    <div style="display:flex; gap:10px; margin-top:15px; justify-content:flex-end;">
+        <button style="border-color:#ff0055; color:#ff0055;" onclick="dropActiveDrawing()">Abort</button>
+        <button onclick="bakeCustomFeatureNode()">Render Layer Element</button>
     </div>
 </div>
 
 <script>
-    let geojsonLayer = null;
-    let localEditsLayerGroup = null;
-    let temporaryDrawnLayer = null;
+    let primaryDatasetLayer = null;
+    let fallbackEditsLayerGroup = null;
+    let pendingDrawnLayerReference = null;
+    let indexRegistryList = []; // Caches string list arrays internally for instantaneous recommendation lookups
 
-    // Load direct map without API keys using CartoDB Smooth Dark Tiles
-    const map = L.map('map', { zoomControl: false }).setView([0, 0], 2);
-    
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 20
-    }).addTo(map);
+    // Initialize map setting world tile view constraints to false to isolate the dataset canvas
+    const map = L.map('map', { 
+        zoomControl: false, 
+        attributionControl: false 
+    }).setView([0, 0], 2);
 
-    localEditsLayerGroup = new L.FeatureGroup().addTo(map);
+    fallbackEditsLayerGroup = new L.FeatureGroup().addTo(map);
 
-    // Mount Leaflet Drawing Elements
-    const drawControl = new L.Control.Draw({
-        edit: { featureGroup: localEditsLayerGroup, remove: true },
+    // Load standard vector overlay draw modules
+    const drawingToolsControl = new L.Control.Draw({
+        edit: { featureGroup: fallbackEditsLayerGroup, remove: true },
         draw: { polygon: true, polyline: true, marker: true, rectangle: true, circle: false }
     });
-    map.addControl(drawControl);
+    map.addControl(drawingToolsControl);
 
-    // Core Initialization
     window.addEventListener('DOMContentLoaded', () => {
-        fetchOrlandData();
+        streamGeoJsonFromGithub();
     });
 
-    // Read direct repository data securely
-    async function fetchOrlandData() {
-        const fileUrl = "https://raw.githubusercontent.com/ChrisAguahrz/ORLEGEO/main/(R) ORLAND 424 STATES.geojson";
+    // 1. RAW INTEGRATION DELIVERING GEOMETRY FOOTPRINTS DIRECT FROM GITHUB
+    async function streamGeoJsonFromGithub() {
+        const path = "https://raw.githubusercontent.com/ChrisAguahrz/ORLEGEO/main/(R) ORLAND 424 STATES.geojson";
         try {
-            const response = await fetch(fileUrl);
-            if (!response.ok) throw new Error("File fetch failed.");
-            const data = await response.json();
+            const response = await fetch(path);
+            if(!response.ok) throw new Error("Dataset response processing failure.");
+            const parsedGeoJSON = await response.json();
 
-            geojsonLayer = L.geoJSON(data, {
+            primaryDatasetLayer = L.geoJSON(parsedGeoJSON, {
                 style: {
-                    color: "#22d3ee",
-                    weight: 1.5,
-                    fillColor: "#22d3ee",
-                    fillOpacity: 0.1
+                    color: "#00f3ff",
+                    weight: 1.2,
+                    fillColor: "#00f3ff",
+                    fillOpacity: 0.04
                 },
                 onEachFeature: (feature, layer) => {
+                    // Extract property names dynamically regardless of case variance
+                    let titleName = feature.properties.County || 
+                                    feature.properties.CountyName || 
+                                    feature.properties.countyName || 
+                                    feature.properties.name || 
+                                    "Unidentified Region Layer Base";
+                    
+                    // Assign fixed value to keep feature lookups perfectly uniform
+                    feature.properties.clean_extracted_name = titleName;
+
+                    // Push value directly to lookup buffer
+                    if(titleName && !indexRegistryList.includes(titleName)) {
+                        indexRegistryList.push(titleName);
+                    }
+
                     layer.on('click', (e) => {
                         L.DomEvent.stopPropagation(e);
-                        selectFeatureItem(layer, feature.properties);
+                        isolateSelectionOnMapClick(layer, feature.properties);
                     });
                 }
             }).addTo(map);
 
-            map.fitBounds(geojsonLayer.getBounds());
-            document.getElementById('map-status').innerText = "Map Ready";
-        } catch (error) {
-            console.error(error);
-            document.getElementById('map-status').innerText = "Data missing or hidden";
+            map.fitBounds(primaryDatasetLayer.getBounds());
+        } catch (err) {
+            console.error(err);
+            document.getElementById('map-status').innerText = "Network Read Interrupted";
         }
     }
 
-    // Capture Vector Complete Creation Triggers
-    map.on(L.Draw.Event.CREATED, function (e) {
-        temporaryDrawnLayer = e.layer;
-        localEditsLayerGroup.addLayer(temporaryDrawnLayer);
-        document.getElementById('editor-drawer').style.display = 'block';
-        toggleFormFields();
-    });
+    // 2. SEARCH BAR RECOMMENDATION LOGIC
+    function evaluateSuggestions(val) {
+        const menu = document.getElementById('suggestion-box');
+        menu.innerHTML = '';
+        if(!val.trim()) { menu.style.display = 'none'; return; }
 
-    function toggleFormFields() {
-        const category = document.getElementById('add-category').value;
-        const targetDiv = document.getElementById('extra-fields');
-        let html = '';
-
-        if (category === 'lake') {
-            html = `
-                <div class="input-group"><label>Depth (Meters)</label><input type="number" id="spec-depth" value="30"></div>
-                <div class="input-group"><label>Size Area (Sq KM)</label><input type="number" id="spec-size" value="100"></div>`;
-        } else if (category === 'mountain') {
-            html = `<div class="input-group"><label>Height (Meters)</label><input type="number" id="spec-height" value="2500"></div>`;
-        } else if (category === 'road') {
-            html = `<div class="input-group"><label>Width Lanes</label><input type="number" id="spec-width" value="4"></div>`;
-        }
-        targetDiv.innerHTML = html;
-    }
-
-    // Displays drawn node elements instantly to viewport layer array
-    function saveLocalFeature() {
-        if (!temporaryDrawnLayer) return;
-
-        const name = document.getElementById('add-name').value || "Custom Location";
-        const category = document.getElementById('add-category').value;
-        const image = document.getElementById('add-img').value;
-        const ref = document.getElementById('add-ref').value || "N/A";
-
-        let specs = {};
-        if (document.getElementById('spec-depth')) specs.depth = document.getElementById('spec-depth').value + " m";
-        if (document.getElementById('spec-size')) specs.size = document.getElementById('spec-size').value + " sq km";
-        if (document.getElementById('spec-height')) specs.height = document.getElementById('spec-height').value + " m";
-        if (document.getElementById('spec-width')) specs.width = document.getElementById('spec-width').value + " Lanes";
-
-        // Style elements interactively based on choices right away
-        if (category === 'lake') {
-            temporaryDrawnLayer.setStyle({ color: '#1d4ed8', fillColor: '#1e40af', fillOpacity: 0.6 }); // Transforms to Ocean color
-        } else if (category === 'mountain') {
-            temporaryDrawnLayer.setStyle({ color: '#f59e0b', fillColor: '#b45309', fillOpacity: 0.5 });
-        } else if (category === 'road') {
-            temporaryDrawnLayer.setStyle({ color: '#e4e4e7', weight: 4 });
-        }
-
-        // Attach custom properties data directly to layer dictionary element
-        temporaryDrawnLayer.customProperties = { name, category, image, reference: ref, specs };
+        // Filter through cached state/county tracking listings
+        const matches = indexRegistryList.filter(item => item.toLowerCase().includes(val.toLowerCase())).slice(0, 5);
         
-        temporaryDrawnLayer.on('click', (e) => {
-            L.DomEvent.stopPropagation(e);
-            displaySidebarHUD(name, category, ref, image, specs);
-        });
-
-        document.getElementById('editor-drawer').style.display = 'none';
+        if(matches.length > 0) {
+            menu.style.display = 'block';
+            matches.forEach(name => {
+                const row = document.createElement('div');
+                row.className = 'suggest-row';
+                row.innerText = name;
+                row.onclick = () => {
+                    document.getElementById('target-search').value = name;
+                    menu.style.display = 'none';
+                    executeMatrixSearch();
+                };
+                menu.appendChild(row);
+            });
+        } else {
+            menu.style.display = 'none';
+        }
     }
 
-    // Unified Search Parsing engine for Names and Batch Coordinate Arrays
-    function runMapSearch() {
-        const input = document.getElementById('search-input').value.trim();
-        if (!input) return;
+    // 3. SELECTION PROCESSING ROUTINES FOR EXPLICIT STRINGS OR RAW BATCH COORDS ARRAY
+    function executeMatrixSearch() {
+        const phrase = document.getElementById('target-search').value.trim();
+        if(!phrase) return;
 
-        // Catch dynamic string lat, lng checks
-        const coordRegex = /^[-+]?([1-9]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/;
+        // Pattern checking coordinates array configurations (lat, lng)
+        const checkCoordsArray = /^[-+]?([1-9]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/;
 
-        if (coordRegex.test(input)) {
-            const [lat, lng] = input.split(',').map(Number);
-            map.setView([lat, lng], 14);
-            L.circle([lat, lng], { color: '#ff0055', radius: 200 }).addTo(map);
-            displaySidebarHUD("Coordinate Focus Target", "Manual Pin Location", "N/A", "", {});
+        if (checkCoordsArray.test(phrase)) {
+            const [lat, lng] = phrase.split(',').map(Number);
+            map.setView([lat, lng], 13);
+            L.circle([lat, lng], { color: '#00f3ff', weight: 1, radius: 250, fillOpacity: 0.2 }).addTo(map);
+            renderInspectorHUDView("Manual Pin Target Vector", "Coordinate Workspace", "N/A", "", {});
             return;
         }
 
-        let itemFound = false;
+        let located = false;
 
-        // Check local drawn workspace markers
-        localEditsLayerGroup.eachLayer((layer) => {
-            if (layer.customProperties && layer.customProperties.name.toLowerCase().includes(input.toLowerCase())) {
+        // Check custom user objects drawn on layer stack
+        fallbackEditsLayerGroup.eachLayer((layer) => {
+            if(layer.customMeta && layer.customMeta.name.toLowerCase().includes(phrase.toLowerCase())) {
                 map.fitBounds(layer.getBounds ? layer.getBounds() : L.latLngBounds(layer.getLatLng(), layer.getLatLng()));
-                const p = layer.customProperties;
-                displaySidebarHUD(p.name, p.category, p.reference, p.image, p.specs);
-                itemFound = true;
+                const meta = layer.customMeta;
+                renderInspectorHUDView(meta.name, meta.category, meta.ref, meta.img, meta.specs);
+                located = true;
             }
         });
 
-        // Check base loaded file components
-        if (!itemFound && geojsonLayer) {
-            geojsonLayer.eachLayer((layer) => {
-                if (layer.feature.properties.name && layer.feature.properties.name.toLowerCase().includes(input.toLowerCase())) {
+        // Scan GitHub Feature Collection array layers
+        if(!located && primaryDatasetLayer) {
+            primaryDatasetLayer.eachLayer((layer) => {
+                if(layer.feature.properties.clean_extracted_name.toLowerCase() === phrase.toLowerCase()) {
                     map.fitBounds(layer.getBounds());
-                    selectFeatureItem(layer, layer.feature.properties);
-                    itemFound = true;
+                    isolateSelectionOnMapClick(layer, layer.feature.properties);
+                    located = true;
                 }
             });
         }
 
-        if (!itemFound) alert("Location matches no known records.");
+        if(!located) alert("Query footprint absent across map registries.");
     }
 
-    function selectFeatureItem(layer, props) {
-        layer.setStyle({ color: '#ff0055', weight: 3, fillOpacity: 0.3 });
-        setTimeout(() => { geojsonLayer.resetStyle(layer); }, 4000);
+    function isolateSelectionOnMapClick(layer, props) {
+        layer.setStyle({ color: '#ff0055', weight: 2, fillOpacity: 0.25 });
+        setTimeout(() => { primaryDatasetLayer.resetStyle(layer); }, 4000);
 
-        displaySidebarHUD(
-            props.name || "County District",
-            props.category || "Base Region Space",
-            props.id || "Unassigned",
+        renderInspectorHUDView(
+            props.clean_extracted_name,
+            props.category || "Base Region State",
+            props.id || "N/A Trace Code",
             props.image_link || "",
             props.dimensions || {}
         );
     }
 
-    function displaySidebarHUD(name, category, ref, img, meta = {}) {
-        document.getElementById('inspector-card').style.display = 'block';
-        document.getElementById('view-name').innerText = name;
-        document.getElementById('view-category').innerText = category;
-        document.getElementById('view-ref').innerText = ref;
+    function renderInspectorHUDView(name, category, ref, imgUrl, parameters = {}) {
+        document.getElementById('inspector-hud').style.display = 'block';
+        document.getElementById('lbl-name').innerText = name;
+        document.getElementById('lbl-category').innerText = category;
+        document.getElementById('lbl-ref').innerText = ref;
 
-        let metaBox = document.getElementById('view-meta');
-        if (Object.keys(meta).length > 0) {
-            metaBox.style.display = 'block';
-            metaBox.innerHTML = Object.entries(meta).map(([key, val]) => `<div><strong>${key.toUpperCase()}:</strong> ${val}</div>`).join('');
+        let dataField = document.getElementById('lbl-metrics');
+        if(Object.keys(parameters).length > 0) {
+            dataField.style.display = 'block';
+            dataField.innerHTML = Object.entries(parameters).map(([k,v]) => `<div>• <strong>${k.toUpperCase()}:</strong> ${v}</div>`).join('');
         } else {
-            metaBox.style.display = 'none';
+            dataField.style.display = 'none';
         }
 
-        let imgBox = document.getElementById('view-image');
-        if (img && img.startsWith('http')) {
-            imgBox.src = img;
-            imgBox.style.display = 'block';
+        let photo = document.getElementById('lbl-img');
+        if(imgUrl && imgUrl.startsWith('http')) {
+            photo.src = imgUrl; photo.style.display = 'block';
         } else {
-            imgBox.style.display = 'none';
+            photo.style.display = 'none';
         }
     }
 
-    function abortCreation() {
-        document.getElementById('editor-drawer').style.display = 'none';
-        if (temporaryDrawnLayer) localEditsLayerGroup.removeLayer(temporaryDrawnLayer);
+    // 4. VECTOR DRAWING MANAGEMENT INTERFACES
+    map.on(L.Draw.Event.CREATED, function (e) {
+        pendingDrawnLayerReference = e.layer;
+        fallbackEditsLayerGroup.addLayer(pendingDrawnLayerReference);
+        document.getElementById('creator-node').style.display = 'block';
+        buildDynamicMetricsForm();
+    });
+
+    function buildDynamicMetricsForm() {
+        const kind = document.getElementById('set-category').value;
+        const panel = document.getElementById('dynamic-input-slots');
+        let slotsHTML = '';
+
+        if(kind === 'lake') {
+            slotsHTML = `
+                <div class="form-row"><label>Water Depth (Meters)</label><input type="number" id="inp-depth" value="65"></div>
+                <div class="form-row"><label>Total Area Grid Size (Sq KM)</label><input type="number" id="inp-size" value="280"></div>`;
+        } else if (kind === 'mountain') {
+            slotsHTML = `<div class="form-row"><label>Peak Elevation Metrics (m)</label><input type="number" id="inp-height" value="3100"></div>`;
+        } else if (kind === 'road') {
+            slotsHTML = `<div class="form-row"><label>Structural Lane Capacity Width</label><input type="number" id="inp-width" value="4"></div>`;
+        }
+        panel.innerHTML = slotsHTML;
+    }
+
+    function bakeCustomFeatureNode() {
+        if(!pendingDrawnLayerReference) return;
+
+        const name = document.getElementById('set-name').value || "Generated Custom Node Asset";
+        const category = document.getElementById('set-category').value;
+        const img = document.getElementById('set-img').value;
+        const ref = document.getElementById('set-ref').value || "N/A";
+
+        let specs = {};
+        if (document.getElementById('inp-depth')) specs.depth = document.getElementById('inp-depth').value + " Meters";
+        if (document.getElementById('inp-size')) specs.size = document.getElementById('inp-size').value + " Sq KM";
+        if (document.getElementById('inp-height')) specs.height = document.getElementById('inp-height').value + " Meters";
+        if (document.getElementById('inp-width')) specs.width = document.getElementById('inp-width').value + " Lanes";
+
+        // Apply distinct spatial network colors adaptively instantly based on choice selection
+        if(category === 'lake') {
+            pendingDrawnLayerReference.setStyle({ color: '#0055ff', fillColor: '#0033aa', fillOpacity: 0.65 }); // VPN Network Blue
+        } else if (category === 'mountain') {
+            pendingDrawnLayerReference.setStyle({ color: '#ffaa00', fillColor: '#885500', fillOpacity: 0.45 });
+        } else if (category === 'road') {
+            pendingDrawnLayerReference.setStyle({ color: '#ffffff', weight: 3 });
+        }
+
+        pendingDrawnLayerReference.customMeta = { name, category, img, ref, specs };
+        
+        pendingDrawnLayerReference.on('click', (e) => {
+            L.DomEvent.stopPropagation(e);
+            renderInspectorHUDView(name, category, ref, img, specs);
+        });
+
+        // Append item directly inside suggestion array database dynamically
+        if(!indexRegistryList.includes(name)) indexRegistryList.push(name);
+
+        document.getElementById('creator-node').style.display = 'none';
+    }
+
+    // 5. DOWNLOAD DATA COMPONENT CONVERTER EXPORT UTILITY
+    function triggerDataDownload() {
+        let compiledOutputCollection = { type: "FeatureCollection", features: [] };
+
+        // Process custom geometry tracking variables created using the QGIS vector tool interfaces
+        fallbackEditsLayerGroup.eachLayer((layer) => {
+            let itemGeoJSON = layer.toGeoJSON();
+            if(layer.customMeta) {
+                itemGeoJSON.properties = {
+                    name: layer.customMeta.name,
+                    category: layer.customMeta.category,
+                    image_link: layer.customMeta.img,
+                    id: layer.customMeta.ref,
+                    dimensions: layer.customMeta.specs
+                };
+            }
+            compiledOutputCollection.features.push(itemGeoJSON);
+        });
+
+        // Process baseline files downloaded directly via the user repository files link profiles
+        if(primaryDatasetLayer) {
+            primaryDatasetLayer.eachLayer((layer) => {
+                compiledOutputCollection.features.push(layer.toGeoJSON());
+            });
+        }
+
+        // Generate downloadable file asset package
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(compiledOutputCollection, null, 2));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "ORLAND_MODIFIED_MATRIX.geojson");
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    }
+
+    function dropActiveDrawing() {
+        document.getElementById('creator-node').style.display = 'none';
+        if(pendingDrawnLayerReference) fallbackEditsLayerGroup.removeLayer(pendingDrawnLayerReference);
     }
 </script>
 </body>
